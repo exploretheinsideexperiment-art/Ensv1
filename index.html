@@ -14,40 +14,60 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ENSv1" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
     <script>
-      // Automatically clean up stale service workers and caches that cause frozen screens
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for (var i = 0; i < regs.length; i++) {
-            regs[i].unregister();
-          }
-        }).catch(function() {});
-      }
-      if ('caches' in window) {
-        caches.keys().then(function(keys) {
-          for (var i = 0; i < keys.length; i++) {
-            caches.delete(keys[i]);
-          }
-        }).catch(function() {});
-      }
-      window.addEventListener('error', function(e) {
-        console.error('Initial script error:', e.error || e.message);
-        var errBox = document.getElementById('init-debug-box');
-        if (errBox) {
-          errBox.style.display = 'block';
-          errBox.textContent = 'Note: ' + (e.message || 'Script load failure');
+      // Aggressively clean up any stale service workers, workbox caches, and app caches
+      (function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var i = 0; i < regs.length; i++) {
+              regs[i].unregister();
+            }
+          }).catch(function() {});
         }
-      });
-      setTimeout(function() {
-        var recoveryBtn = document.getElementById('init-recovery-btn');
-        if (recoveryBtn) {
-          recoveryBtn.style.display = 'inline-block';
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            for (var i = 0; i < keys.length; i++) {
+              caches.delete(keys[i]);
+            }
+          }).catch(function() {});
         }
-      }, 3500);
+
+        // Global Error & Promise Rejection listener
+        window.addEventListener('error', function(e) {
+          console.error('[ENSv1] Window error:', e.error || e.message);
+          var debugBox = document.getElementById('init-debug-box');
+          if (debugBox) {
+            debugBox.style.display = 'block';
+            debugBox.textContent = 'Startup note: ' + (e.message || 'Script loading issue');
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          console.error('[ENSv1] Unhandled rejection:', e.reason);
+        });
+      })();
+
+      function forceCleanReset() {
+        try {
+          localStorage.removeItem('ensv1_saved_topologies');
+          localStorage.removeItem('ensv1_device_templates');
+          sessionStorage.clear();
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(k) { caches.delete(k); });
+            });
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+          }
+        } catch(err) {}
+        window.location.href = window.location.origin + window.location.pathname + '?nocache=' + Date.now();
+      }
     </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden select-none">
@@ -60,19 +80,19 @@
             <path d="m4.93 4.93 2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
         </div>
-        <div style="font-size: 18px; font-weight: 800; color: #f8fafc; letter-spacing: 0.05em; margin-bottom: 4px;">
+        <div style="font-size: 20px; font-weight: 800; color: #f8fafc; letter-spacing: 0.05em; margin-bottom: 4px;">
           ENSv1
         </div>
-        <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 20px;">
           Explore Network Simulator Version 1
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #38bdf8; margin-bottom: 14px;">
-          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #38bdf8;"></span>
-          Initializing Network Lab...
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #38bdf8; margin-bottom: 16px;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #38bdf8; animation: pulse 1.5s infinite;"></span>
+          Loading Network Topology Engine...
         </div>
-        <div id="init-debug-box" style="display: none; max-width: 320px; margin-bottom: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-size: 11px; color: #f87171; word-break: break-all;"></div>
-        <button id="init-recovery-btn" onclick="window.location.reload(true)" style="display: none; padding: 8px 16px; background: #0284c7; color: #ffffff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-          Tap to Reload Lab
+        <div id="init-debug-box" style="display: none; max-width: 320px; margin-bottom: 14px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-size: 11px; color: #f87171; word-break: break-all;"></div>
+        <button onclick="forceCleanReset()" style="margin-top: 8px; padding: 8px 16px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; font-size: 11px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+          <span>Clear Cache & Open</span>
         </button>
       </div>
     </div>

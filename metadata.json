@@ -1,0 +1,6 @@
+{
+  "name": "ENSv1 - Explore Network Simulator",
+  "description": "Professional browser-based network laboratory for designing, connecting, configuring, and exploring complex network topologies with virtual routers, switches, firewalls, and hosts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

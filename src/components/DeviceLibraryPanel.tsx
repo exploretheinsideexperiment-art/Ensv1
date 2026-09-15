@@ -66,10 +66,10 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
           <ChevronRight className="h-4 w-4" />
         </button>
         <div className="flex flex-col gap-3 text-slate-500">
-          <Server className="h-5 w-5" title="Routers" />
-          <Layers className="h-5 w-5" title="Switches" />
-          <Shield className="h-5 w-5" title="Firewalls" />
-          <Monitor className="h-5 w-5" title="Hosts" />
+          <span title="Routers"><Server className="h-5 w-5" /></span>
+          <span title="Switches"><Layers className="h-5 w-5" /></span>
+          <span title="Firewalls"><Shield className="h-5 w-5" /></span>
+          <span title="Hosts"><Monitor className="h-5 w-5" /></span>
         </div>
       </aside>
     );

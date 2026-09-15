@@ -252,9 +252,9 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
       </g>
 
       {/* Interface Port Indicators (Green/Red link lights like the screenshot!) */}
-      {device.config.interfaces.map((iface, idx) => {
+      {(device.config?.interfaces || []).map((iface, idx) => {
         // Distribute interface dots along device perimeter
-        const total = device.config.interfaces.length;
+        const total = (device.config?.interfaces || []).length;
         const angle = (idx / Math.max(1, total)) * Math.PI * 2 - Math.PI / 2;
         const radius = 34;
         const dotX = 40 + Math.cos(angle) * radius;

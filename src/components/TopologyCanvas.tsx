@@ -202,7 +202,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
   // Build device lookup map
   const deviceMap = useMemo(() => {
     const map = new Map<string, NetworkDevice>();
-    devices.forEach((d) => map.set(d.id, d));
+    (devices || []).forEach((d) => map.set(d.id, d));
     return map;
   }, [devices]);
 
@@ -272,7 +272,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
       >
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {/* 1. Annotations Layer */}
-          {annotations.map((anno) => (
+          {(annotations || []).map((anno) => (
             <g key={anno.id} transform={`translate(${anno.x}, ${anno.y})`}>
               {anno.type === 'text' && (
                 <text
@@ -290,7 +290,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
           ))}
 
           {/* 2. Virtual Cables & Links Layer */}
-          {links.map((link) => {
+          {(links || []).map((link) => {
             const src = deviceMap.get(link.sourceDeviceId);
             const tgt = deviceMap.get(link.targetDeviceId);
             if (!src || !tgt) return null;
@@ -413,7 +413,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                   <g transform={`translate(${midX}, ${midY})`}>
                     <rect x="-24" y="-9" width="48" height="16" rx="4" fill="#090e17" fillOpacity="0.9" stroke="#1e293b" strokeWidth="1" />
                     <text x="0" y="2" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="monospace">
-                      {link.currentTrafficMbps.toFixed(1)} Mbps
+                      {(link.currentTrafficMbps ?? 0).toFixed(1)} Mbps
                     </text>
                   </g>
                 )}
@@ -445,7 +445,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
 
           {/* 4. Animated Simulated Packets Moving Along Links */}
           {packetAnimationActive &&
-            simulatedPackets.map((pkt) => {
+            (simulatedPackets || []).map((pkt) => {
               const src = deviceMap.get(pkt.sourceDeviceId);
               const tgt = deviceMap.get(pkt.targetDeviceId);
               if (!src || !tgt) return null;
@@ -485,7 +485,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             })}
 
           {/* 5. Device Hardware Nodes Layer */}
-          {devices.map((dev) => (
+          {(devices || []).map((dev) => (
             <DeviceNode
               key={dev.id}
               device={dev}

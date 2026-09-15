@@ -35,7 +35,10 @@ export default function App() {
   const [savedProjects, setSavedProjects] = useState<ENSProject[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SAVED_PROJECTS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // ignore
     }
@@ -59,7 +62,9 @@ export default function App() {
   });
 
   // 3. Selection & Tools State
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>('dev-r1');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(() => {
+    return DEFAULT_PRESET_LAB?.devices?.[0]?.id || null;
+  });
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   const [isCableToolActive, setIsCableToolActive] = useState(false);
@@ -76,8 +81,12 @@ export default function App() {
 
   // 5. Consoles / Terminals
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
-  const [openConsoleDeviceIds, setOpenConsoleDeviceIds] = useState<string[]>(['dev-r1']);
-  const [activeConsoleDeviceId, setActiveConsoleDeviceId] = useState<string | null>('dev-r1');
+  const [openConsoleDeviceIds, setOpenConsoleDeviceIds] = useState<string[]>(() => {
+    return DEFAULT_PRESET_LAB?.devices?.[0]?.id ? [DEFAULT_PRESET_LAB.devices[0].id] : [];
+  });
+  const [activeConsoleDeviceId, setActiveConsoleDeviceId] = useState<string | null>(() => {
+    return DEFAULT_PRESET_LAB?.devices?.[0]?.id || null;
+  });
 
   // 6. UI Panels Collapsing (Collapsible for smaller screens & tablet mode)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
@@ -537,7 +546,16 @@ export default function App() {
               ...d.config,
               interfaces: d.config.interfaces.map((i) =>
                 i.id === sourceInterfaceId
-                  ? { ...i, connectedTo: { deviceId: tgtDev.id, interfaceId: targetInterfaceId }, status: 'up' }
+                  ? {
+                      ...i,
+                      connectedTo: {
+                        deviceId: tgtDev.id,
+                        interfaceId: targetInterfaceId,
+                        interfaceName: tgtIface?.name || 'eth0',
+                        linkId: newLink.id,
+                      },
+                      status: 'up' as const,
+                    }
                   : i
               ),
             },
@@ -550,7 +568,16 @@ export default function App() {
               ...d.config,
               interfaces: d.config.interfaces.map((i) =>
                 i.id === targetInterfaceId
-                  ? { ...i, connectedTo: { deviceId: srcDev.id, interfaceId: sourceInterfaceId }, status: 'up' }
+                  ? {
+                      ...i,
+                      connectedTo: {
+                        deviceId: srcDev.id,
+                        interfaceId: sourceInterfaceId,
+                        interfaceName: srcIface?.name || 'eth0',
+                        linkId: newLink.id,
+                      },
+                      status: 'up' as const,
+                    }
                   : i
               ),
             },

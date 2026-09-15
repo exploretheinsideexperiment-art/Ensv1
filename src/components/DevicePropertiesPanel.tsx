@@ -231,7 +231,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
 
   // DEVICE SELECTED VIEW
   const handleInterfaceChange = (ifaceId: string, updates: Partial<NetworkInterface>) => {
-    const updatedInterfaces = selectedDevice.config.interfaces.map((i) =>
+    const updatedInterfaces = (selectedDevice.config?.interfaces || []).map((i) =>
       i.id === ifaceId ? { ...i, ...updates } : i
     );
     onUpdateDevice({
@@ -244,7 +244,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
   };
 
   const handleAddNewInterface = () => {
-    const count = selectedDevice.config.interfaces.length;
+    const count = (selectedDevice.config?.interfaces || []).length;
     const prefix = selectedDevice.type === 'router' ? 'Gi0/' : selectedDevice.type === 'switch' ? 'port' : 'eth';
     const newIface: NetworkInterface = {
       id: `if-${Date.now()}`,
@@ -259,7 +259,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
       ...selectedDevice,
       config: {
         ...selectedDevice.config,
-        interfaces: [...selectedDevice.config.interfaces, newIface],
+        interfaces: [...(selectedDevice.config?.interfaces || []), newIface],
       },
     });
   };
@@ -346,7 +346,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
             activeTab === 'interfaces' ? 'bg-slate-800 text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Interfaces ({selectedDevice.config.interfaces.length})
+          Interfaces ({(selectedDevice.config?.interfaces || []).length})
         </button>
         <button
           onClick={() => setActiveTab('hardware')}
@@ -382,7 +382,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
             </div>
 
             <div className="space-y-2">
-              {selectedDevice.config.interfaces.map((iface) => {
+              {(selectedDevice.config?.interfaces || []).map((iface) => {
                 const isConnected = !!iface.connectedTo;
                 return (
                   <div

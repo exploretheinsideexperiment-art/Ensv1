@@ -89,8 +89,12 @@ export default function App() {
   });
 
   // 6. UI Panels Collapsing (Collapsible for smaller screens & tablet mode)
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+  });
 
   // 7. Modals
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState(false);
@@ -758,22 +762,55 @@ export default function App() {
             }}
           />
 
-          {/* Quick Floating Status Bar at Bottom Center */}
-          <div className="absolute bottom-4 left-6 z-20 flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 py-1.5 px-3 shadow-xl backdrop-blur-md text-xs text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <span>{currentProject.devices.filter((d) => d.status === 'running').length} running</span>
-            </span>
-            <span className="text-slate-600">•</span>
-            <span>{currentProject.links.length} virtual links</span>
-            <span className="text-slate-600">•</span>
-            <button
-              onClick={() => setIsPacketInspectorOpen(true)}
-              className="flex items-center gap-1 text-sky-400 hover:text-sky-300 font-semibold"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              <span>Packet Sniffer ({capturedPackets.length})</span>
-            </button>
+          {/* Quick Floating Status Bar & Mobile Panel Toggles */}
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 py-1.5 px-3 shadow-xl backdrop-blur-md text-xs text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span>{currentProject.devices.filter((d) => d.status === 'running').length} running</span>
+              </span>
+              <span className="text-slate-600">•</span>
+              <span>{currentProject.links.length} virtual links</span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <button
+                onClick={() => setIsPacketInspectorOpen(true)}
+                className="hidden sm:flex items-center gap-1 text-sky-400 hover:text-sky-300 font-semibold"
+              >
+                <Activity className="h-3.5 w-3.5" />
+                <span>Packets ({capturedPackets.length})</span>
+              </button>
+            </div>
+
+            {/* Mobile / Quick Action Dock */}
+            <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-xl backdrop-blur-md text-xs">
+              <button
+                onClick={() => setLeftPanelCollapsed((prev) => !prev)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition ${
+                  !leftPanelCollapsed ? 'bg-sky-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+                title="Toggle Device Library"
+              >
+                + Devices
+              </button>
+              <button
+                onClick={() => setRightPanelCollapsed((prev) => !prev)}
+                className={`px-2.5 py-1 rounded-lg font-medium transition ${
+                  !rightPanelCollapsed ? 'bg-sky-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+                title="Toggle Properties Panel"
+              >
+                Config
+              </button>
+              <button
+                onClick={handleOpenConsoleAll}
+                className={`px-2.5 py-1 rounded-lg font-medium transition ${
+                  isConsoleOpen ? 'bg-amber-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+                title="Open Terminal"
+              >
+                CLI
+              </button>
+            </div>
           </div>
         </main>
 

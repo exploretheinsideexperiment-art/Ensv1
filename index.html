@@ -19,7 +19,7 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
     <script>
-      // Automatically clean up stale dev service workers that cause blank screens in iframes
+      // Automatically clean up stale service workers and caches that cause frozen screens
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           for (var i = 0; i < regs.length; i++) {
@@ -27,6 +27,27 @@
           }
         }).catch(function() {});
       }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          for (var i = 0; i < keys.length; i++) {
+            caches.delete(keys[i]);
+          }
+        }).catch(function() {});
+      }
+      window.addEventListener('error', function(e) {
+        console.error('Initial script error:', e.error || e.message);
+        var errBox = document.getElementById('init-debug-box');
+        if (errBox) {
+          errBox.style.display = 'block';
+          errBox.textContent = 'Note: ' + (e.message || 'Script load failure');
+        }
+      });
+      setTimeout(function() {
+        var recoveryBtn = document.getElementById('init-recovery-btn');
+        if (recoveryBtn) {
+          recoveryBtn.style.display = 'inline-block';
+        }
+      }, 3500);
     </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden select-none">
@@ -45,10 +66,14 @@
         <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
           Explore Network Simulator Version 1
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #38bdf8;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #38bdf8; margin-bottom: 14px;">
           <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #38bdf8;"></span>
           Initializing Network Lab...
         </div>
+        <div id="init-debug-box" style="display: none; max-width: 320px; margin-bottom: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-size: 11px; color: #f87171; word-break: break-all;"></div>
+        <button id="init-recovery-btn" onclick="window.location.reload(true)" style="display: none; padding: 8px 16px; background: #0284c7; color: #ffffff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+          Tap to Reload Lab
+        </button>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

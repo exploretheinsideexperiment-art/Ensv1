@@ -162,12 +162,12 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
   const getPowerColor = () => {
     switch (device.status) {
       case 'running':
-        return '#22c55e'; // Green
+        return '#22c55e'; // Green (Start)
       case 'stopped':
-        return '#ef4444'; // Red
+        return '#ef4444'; // Red (Stop)
       case 'starting':
       case 'paused':
-        return '#eab308'; // Yellow
+        return '#f59e0b'; // Amber / Orange (Hold)
     }
   };
 
@@ -219,11 +219,39 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
       <circle
         cx="14"
         cy="14"
-        r="5"
+        r={device.status === 'running' ? 5.5 : 5}
         fill={getPowerColor()}
         stroke="#0f172a"
         strokeWidth="1.5"
+        className={device.status === 'running' ? 'animate-pulse' : ''}
       />
+
+      {/* HOLD status badge */}
+      {device.status === 'paused' && (
+        <g transform="translate(40, -4)">
+          <rect
+            x="-16"
+            y="-7"
+            width="32"
+            height="14"
+            rx="4"
+            fill="#78350f"
+            stroke="#f59e0b"
+            strokeWidth="1"
+          />
+          <text
+            x="0"
+            y="3.5"
+            textAnchor="middle"
+            fill="#fef08a"
+            fontSize="8"
+            fontWeight="bold"
+            fontFamily="monospace"
+          >
+            HOLD
+          </text>
+        </g>
+      )}
 
       {/* Device Name Label */}
       <g transform="translate(40, 72)">
@@ -251,7 +279,7 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
         </text>
       </g>
 
-      {/* Interface Port Indicators (Green/Red link lights like the screenshot!) */}
+      {/* Interface Port Indicators (Green when running, Orange when on hold, Red when stopped) */}
       {(device.config?.interfaces || []).map((iface, idx) => {
         // Distribute interface dots along device perimeter
         const total = (device.config?.interfaces || []).length;
@@ -260,8 +288,15 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
         const dotX = 40 + Math.cos(angle) * radius;
         const dotY = 32 + Math.sin(angle) * radius;
 
-        const isUp = iface.status === 'up' && device.status === 'running';
         const isConnected = !!iface.connectedTo;
+        let ledFill = '#ef4444'; // Red default
+        if (isConnected) {
+          if (device.status === 'running') {
+            ledFill = '#22c55e'; // Green
+          } else if (device.status === 'paused') {
+            ledFill = '#f59e0b'; // Amber / Orange (Hold)
+          }
+        }
 
         return (
           <g
@@ -273,12 +308,12 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
               onInterfaceClick?.(device, iface.id);
             }}
           >
-            {/* Link light dot (Green if connected & running, Red if disconnected or stopped) */}
+            {/* Link light dot */}
             <circle
               cx="0"
               cy="0"
               r="4.5"
-              fill={isUp && isConnected ? '#22c55e' : '#ef4444'}
+              fill={ledFill}
               stroke="#0f172a"
               strokeWidth="1.2"
               className="hover:r-6 transition-all"

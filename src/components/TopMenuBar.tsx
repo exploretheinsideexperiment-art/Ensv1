@@ -26,6 +26,7 @@ import { ENSProject } from '../types/network';
 interface TopMenuBarProps {
   currentProject: ENSProject;
   isRunningAny: boolean;
+  topologyStatus?: 'running' | 'paused' | 'stopped';
   isCableToolActive: boolean;
   showInterfaceLabels: boolean;
   packetAnimationActive: boolean;
@@ -54,6 +55,7 @@ interface TopMenuBarProps {
 export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   currentProject,
   isRunningAny,
+  topologyStatus = isRunningAny ? 'running' : 'stopped',
   isCableToolActive,
   showInterfaceLabels,
   packetAnimationActive,
@@ -436,37 +438,87 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
 
           <div className="h-4 w-px bg-slate-800 mx-1" />
 
-          {/* Node Power Lifecycle Controls */}
-          <button
-            onClick={onStartAll}
-            title="Start All Devices in Lab (Green Triangle)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 font-semibold"
-          >
-            <Play className="h-3.5 w-3.5 fill-emerald-400" />
-            <span className="hidden sm:inline">Start All</span>
-          </button>
-          <button
-            onClick={onPauseAll}
-            title="Pause All Devices"
-            className="p-1.5 rounded-lg text-amber-400 hover:bg-slate-800"
-          >
-            <Pause className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={onStopAll}
-            title="Stop All Devices (Red Square)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 font-semibold"
-          >
-            <Square className="h-3.5 w-3.5 fill-red-400" />
-            <span className="hidden sm:inline">Stop All</span>
-          </button>
-          <button
-            onClick={onRestartAll}
-            title="Restart / Reload Lab"
-            className="p-1.5 rounded-lg text-sky-400 hover:bg-slate-800"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+          {/* Node Power Lifecycle Controls - Start (Green), Hold (Orange), Stop (Red) */}
+          <div className="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-slate-800" id="topology-power-controls">
+            {/* 1. START (Green Button) */}
+            <button
+              onClick={onStartAll}
+              title="Start Topology (Green Play) - Power on all devices and start traffic"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                topologyStatus === 'running'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60 ring-1 ring-emerald-400 font-bold'
+                  : 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-600/30 hover:text-emerald-200'
+              }`}
+            >
+              <Play className={`h-3.5 w-3.5 fill-current ${topologyStatus === 'running' ? 'animate-pulse' : ''}`} />
+              <span>Start</span>
+              {topologyStatus === 'running' && (
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping ml-0.5" />
+              )}
+            </button>
+
+            {/* 2. HOLD (Orange Button) */}
+            <button
+              onClick={onPauseAll}
+              title="Hold Topology (Orange Pause) - Freeze devices & packets in place"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                topologyStatus === 'paused'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-950/60 ring-1 ring-amber-400 font-bold'
+                  : 'bg-amber-950/40 text-amber-400 border border-amber-500/40 hover:bg-amber-600/30 hover:text-amber-200'
+              }`}
+            >
+              <Pause className="h-3.5 w-3.5 fill-current" />
+              <span>Hold</span>
+              {topologyStatus === 'paused' && (
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping ml-0.5" />
+              )}
+            </button>
+
+            {/* 3. STOP (Red Button) */}
+            <button
+              onClick={onStopAll}
+              title="Stop Topology (Red Square) - Power off all devices and stop all traffic"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                topologyStatus === 'stopped'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-950/60 ring-1 ring-rose-400 font-bold'
+                  : 'bg-rose-950/40 text-rose-400 border border-rose-500/40 hover:bg-rose-600/30 hover:text-rose-200'
+              }`}
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              <span>Stop</span>
+            </button>
+
+            {/* Reload Lab */}
+            <button
+              onClick={onRestartAll}
+              title="Restart / Reload Lab Devices"
+              className="p-1 rounded-md text-slate-400 hover:text-sky-300 hover:bg-slate-800 transition"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Topology Status Indicator Pill */}
+          <div className="hidden sm:flex items-center ml-1">
+            {topologyStatus === 'running' && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Running
+              </span>
+            )}
+            {topologyStatus === 'paused' && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-500/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                On Hold
+              </span>
+            )}
+            {topologyStatus === 'stopped' && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-500/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                Stopped
+              </span>
+            )}
+          </div>
 
           <div className="h-4 w-px bg-slate-800 mx-1" />
 

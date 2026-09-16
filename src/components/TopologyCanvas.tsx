@@ -305,7 +305,16 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             const midY = (y1 + y2) / 2;
 
             const isLinkSelected = selectedLinkId === link.id;
-            const isUp = link.status === 'up' && src.status === 'running' && tgt.status === 'running';
+            const isRunning = link.status === 'up' && src.status === 'running' && tgt.status === 'running';
+            const isHeld = link.status === 'up' && (src.status === 'paused' || tgt.status === 'paused');
+            const isUp = isRunning || isHeld;
+
+            // Interface LED color based on device power status
+            const getEndpointLedColor = (devStatus: string) => {
+              if (devStatus === 'running') return '#22c55e'; // Green
+              if (devStatus === 'paused') return '#f59e0b'; // Amber / Orange
+              return '#ef4444'; // Red
+            };
 
             // Cable style based on link type
             let strokeColor = '#475569';
@@ -313,13 +322,13 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             let strokeDash: string | undefined = undefined;
 
             if (link.type === 'fiber') {
-              strokeColor = '#f59e0b'; // Amber fiber
+              strokeColor = isHeld ? '#d97706' : '#f59e0b'; // Amber fiber
               strokeWidth = 3;
             } else if (link.type === 'serial') {
               strokeColor = '#ef4444'; // Red serial
               strokeDash = '6 3';
             } else if (link.type === 'gigabit') {
-              strokeColor = isUp ? '#0284c7' : '#334155'; // Sky blue / dark
+              strokeColor = isRunning ? '#0284c7' : isHeld ? '#d97706' : '#334155'; // Sky blue / Amber / Dark
               strokeWidth = 2.8;
             }
 
@@ -368,13 +377,13 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                   className="transition-colors group-hover:stroke-sky-400"
                 />
 
-                {/* Interface status dots on ends (Red / Green link lights just like GNS3 screenshot) */}
+                {/* Interface status dots on ends (Green when Running, Amber when on Hold, Red when Stopped) */}
                 {/* Source interface LED */}
                 <circle
                   cx={x1 + (x2 - x1) * 0.18}
                   cy={y1 + (y2 - y1) * 0.18}
                   r="4"
-                  fill={isUp ? '#22c55e' : '#ef4444'}
+                  fill={getEndpointLedColor(src.status)}
                   stroke="#0f172a"
                   strokeWidth="1"
                 />
@@ -383,7 +392,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                   cx={x2 - (x2 - x1) * 0.18}
                   cy={y2 - (y2 - y1) * 0.18}
                   r="4"
-                  fill={isUp ? '#22c55e' : '#ef4444'}
+                  fill={getEndpointLedColor(tgt.status)}
                   stroke="#0f172a"
                   strokeWidth="1"
                 />
@@ -411,9 +420,27 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                 {/* Live Traffic Badge at cable midpoint */}
                 {isUp && (
                   <g transform={`translate(${midX}, ${midY})`}>
-                    <rect x="-24" y="-9" width="48" height="16" rx="4" fill="#090e17" fillOpacity="0.9" stroke="#1e293b" strokeWidth="1" />
-                    <text x="0" y="2" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="monospace">
-                      {(link.currentTrafficMbps ?? 0).toFixed(1)} Mbps
+                    <rect
+                      x="-24"
+                      y="-9"
+                      width="48"
+                      height="16"
+                      rx="4"
+                      fill="#090e17"
+                      fillOpacity="0.9"
+                      stroke={isHeld ? '#f59e0b' : '#1e293b'}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="0"
+                      y="2"
+                      textAnchor="middle"
+                      fill={isHeld ? '#fbbf24' : '#64748b'}
+                      fontSize="8"
+                      fontFamily="monospace"
+                      fontWeight={isHeld ? 'bold' : 'normal'}
+                    >
+                      {isHeld ? 'HOLD' : `${(link.currentTrafficMbps ?? 0).toFixed(1)} Mbps`}
                     </text>
                   </g>
                 )}

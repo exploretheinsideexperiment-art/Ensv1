@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   NetworkDevice,
   NetworkLink,
@@ -21,7 +21,7 @@ import { PacketInspectorModal } from './components/PacketInspectorModal';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { HelpAboutModal } from './components/HelpAboutModal';
 import { CanvasContextMenu } from './components/CanvasContextMenu';
-import { Terminal, HardDrive, Smartphone, Activity, Play, Square, Link as LinkIcon, Plus } from 'lucide-react';
+import { Terminal, HardDrive, Smartphone, Activity, Play, Pause, Square, Link as LinkIcon, Plus } from 'lucide-react';
 
 const STORAGE_KEY_SAVED_PROJECTS = 'ensv1_saved_topologies';
 const STORAGE_KEY_TEMPLATES = 'ensv1_device_templates';
@@ -78,6 +78,10 @@ export default function App() {
   // 4. Packet Simulation & Traffic
   const [simulatedPackets, setSimulatedPackets] = useState<SimulatedPacket[]>([]);
   const [capturedPackets, setCapturedPackets] = useState<SimulatedPacket[]>([]);
+  const [simulationToast, setSimulationToast] = useState<{
+    message: string;
+    type: 'start' | 'hold' | 'stop';
+  } | null>(null);
 
   // 5. Consoles / Terminals
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
@@ -137,9 +141,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentProject]);
 
-  // Periodic packet animation runner
+  // Periodic packet animation runner (Running active, Hold frozen, Stop cleared)
   useEffect(() => {
     if (!packetAnimationActive) return;
+
+    const isAnyRunning = currentProject.devices.some((d) => d.status === 'running');
+    const isAnyPaused = currentProject.devices.some((d) => d.status === 'paused');
+
+    // If completely stopped (no devices running and none paused), clear packets
+    if (!isAnyRunning && !isAnyPaused) {
+      setSimulatedPackets([]);
+      return;
+    }
+
+    // If on Hold (no devices running, but devices are paused), freeze packets in place!
+    if (isAnyPaused && !isAnyRunning) {
+      return;
+    }
 
     const interval = setInterval(() => {
       setSimulatedPackets((prev) => {
@@ -415,15 +433,43 @@ export default function App() {
           })),
         },
       })),
+      links: prev.links.map((l) => ({
+        ...l,
+        status: 'up',
+        currentTrafficMbps:
+          l.currentTrafficMbps && l.currentTrafficMbps > 0
+            ? l.currentTrafficMbps
+            : Number((Math.random() * 8 + 3).toFixed(1)),
+      })),
     }));
+    setSimulationToast({ message: 'Topology Started — All Devices Running', type: 'start' });
+    setTimeout(() => setSimulationToast(null), 2500);
     setHasUnsavedChanges(true);
   };
 
   const handleStopAll = () => {
     setCurrentProject((prev) => ({
       ...prev,
-      devices: prev.devices.map((d) => ({ ...d, status: 'stopped' })),
+      devices: prev.devices.map((d) => ({
+        ...d,
+        status: 'stopped',
+        config: {
+          ...d.config,
+          interfaces: d.config.interfaces.map((i) => ({
+            ...i,
+            status: 'down',
+          })),
+        },
+      })),
+      links: prev.links.map((l) => ({
+        ...l,
+        status: 'down',
+        currentTrafficMbps: 0,
+      })),
     }));
+    setSimulatedPackets([]);
+    setSimulationToast({ message: 'Topology Stopped — All Devices Powered Off', type: 'stop' });
+    setTimeout(() => setSimulationToast(null), 2500);
     setHasUnsavedChanges(true);
   };
 
@@ -432,6 +478,8 @@ export default function App() {
       ...prev,
       devices: prev.devices.map((d) => ({ ...d, status: 'paused' })),
     }));
+    setSimulationToast({ message: 'Topology on Hold — Devices & Packets Paused', type: 'hold' });
+    setTimeout(() => setSimulationToast(null), 2500);
     setHasUnsavedChanges(true);
   };
 
@@ -678,12 +726,24 @@ export default function App() {
   const selectedLink = currentProject.links.find((l) => l.id === selectedLinkId) || null;
   const isRunningAny = currentProject.devices.some((d) => d.status === 'running');
 
+  // Overall topology lifecycle status
+  const topologyStatus: 'running' | 'paused' | 'stopped' = useMemo(() => {
+    if (currentProject.devices.length === 0) return 'stopped';
+    const runningCount = currentProject.devices.filter((d) => d.status === 'running').length;
+    const pausedCount = currentProject.devices.filter((d) => d.status === 'paused').length;
+
+    if (runningCount > 0) return 'running';
+    if (pausedCount > 0) return 'paused';
+    return 'stopped';
+  }, [currentProject.devices]);
+
   return (
     <div className="flex h-screen h-[100dvh] w-full max-w-full flex-col bg-[#080d17] text-slate-100 overflow-hidden font-sans select-none antialiased">
       {/* 1. Header & Primary Toolbars */}
       <TopMenuBar
         currentProject={currentProject}
         isRunningAny={isRunningAny}
+        topologyStatus={topologyStatus}
         isCableToolActive={isCableToolActive}
         showInterfaceLabels={showInterfaceLabels}
         packetAnimationActive={packetAnimationActive}
@@ -739,6 +799,26 @@ export default function App() {
 
         {/* Center: Interactive Topology Canvas */}
         <main className="flex-1 h-full relative overflow-hidden">
+          {/* Floating Simulation State Feedback Toast */}
+          {simulationToast && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none transition-all duration-300">
+              <div
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md border ${
+                  simulationToast.type === 'start'
+                    ? 'bg-emerald-950/95 text-emerald-300 border-emerald-500/60 shadow-emerald-950/60'
+                    : simulationToast.type === 'hold'
+                    ? 'bg-amber-950/95 text-amber-300 border-amber-500/60 shadow-amber-950/60'
+                    : 'bg-rose-950/95 text-rose-300 border-rose-500/60 shadow-rose-950/60'
+                }`}
+              >
+                {simulationToast.type === 'start' && <Play className="h-4 w-4 fill-emerald-400 text-emerald-400 animate-pulse" />}
+                {simulationToast.type === 'hold' && <Pause className="h-4 w-4 fill-amber-400 text-amber-400" />}
+                {simulationToast.type === 'stop' && <Square className="h-4 w-4 fill-rose-400 text-rose-400" />}
+                <span>{simulationToast.message}</span>
+              </div>
+            </div>
+          )}
+
           <TopologyCanvas
             devices={currentProject.devices}
             links={currentProject.links}

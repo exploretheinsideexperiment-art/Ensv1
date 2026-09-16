@@ -404,7 +404,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
       </div>
 
       {/* 2. Primary Engineering Action Toolbar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-[#0e1626] border-b border-slate-800/80 overflow-x-auto text-xs">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#0e1626] border-b border-slate-800/80 overflow-x-auto text-xs no-scrollbar">
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Project operations */}
           <button

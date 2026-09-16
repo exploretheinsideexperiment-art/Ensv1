@@ -679,7 +679,7 @@ export default function App() {
   const isRunningAny = currentProject.devices.some((d) => d.status === 'running');
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-[#080d17] text-slate-100 overflow-hidden font-sans select-none antialiased">
+    <div className="flex h-screen h-[100dvh] w-full max-w-full flex-col bg-[#080d17] text-slate-100 overflow-hidden font-sans select-none antialiased">
       {/* 1. Header & Primary Toolbars */}
       <TopMenuBar
         currentProject={currentProject}
@@ -717,6 +717,17 @@ export default function App() {
 
       {/* 2. Main Laboratory Workspace */}
       <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile backdrop overlay when side panels are open */}
+        {(!leftPanelCollapsed || !rightPanelCollapsed) && (
+          <div
+            className="md:hidden absolute inset-0 z-20 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => {
+              setLeftPanelCollapsed(true);
+              setRightPanelCollapsed(true);
+            }}
+          />
+        )}
+
         {/* Left: Device Library Panel */}
         <DeviceLibraryPanel
           templates={templates}

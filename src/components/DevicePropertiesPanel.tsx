@@ -62,7 +62,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
 
   if (isCollapsed) {
     return (
-      <aside className="w-12 border-l border-slate-800 bg-[#090e17] flex flex-col items-center py-3 select-none z-20">
+      <aside className="hidden md:flex w-12 border-l border-slate-800 bg-[#090e17] flex-col items-center py-3 select-none z-20">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition mb-4"
@@ -80,7 +80,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
     const tgtDevice = project.devices.find((d) => d.id === selectedLink.targetDeviceId);
 
     return (
-      <aside className="w-80 border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-20 text-slate-200" id="ensv1-link-properties">
+      <aside className="w-80 max-w-[90vw] border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-30 text-slate-200 absolute md:relative inset-y-0 right-0 shadow-2xl md:shadow-none" id="ensv1-link-properties">
         <div className="p-3 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link className="h-4 w-4 text-amber-400" />
@@ -179,7 +179,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
     const totalRam = project.devices.reduce((acc, d) => acc + d.ramMb, 0);
 
     return (
-      <aside className="w-80 border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-20 text-slate-200">
+      <aside className="w-80 max-w-[90vw] border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-30 text-slate-200 absolute md:relative inset-y-0 right-0 shadow-2xl md:shadow-none">
         <div className="p-3 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-sky-400" />
@@ -265,7 +265,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
   };
 
   return (
-    <aside className="w-80 border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-20 text-slate-200" id="ensv1-device-properties">
+    <aside className="w-80 max-w-[90vw] border-l border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-30 text-slate-200 absolute md:relative inset-y-0 right-0 shadow-2xl md:shadow-none" id="ensv1-device-properties">
       {/* Header */}
       <div className="p-3 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2">

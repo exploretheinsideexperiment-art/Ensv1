@@ -57,7 +57,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
 
   if (isCollapsed) {
     return (
-      <aside className="w-12 border-r border-slate-800 bg-[#090e17] flex flex-col items-center py-3 select-none z-20">
+      <aside className="hidden md:flex w-12 border-r border-slate-800 bg-[#090e17] flex-col items-center py-3 select-none z-20">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition mb-4"
@@ -76,7 +76,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
   }
 
   return (
-    <aside className="w-72 border-r border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-20 text-slate-200">
+    <aside className="w-72 max-w-[85vw] border-r border-slate-800 bg-[#0b111e] flex flex-col h-full select-none z-30 text-slate-200 absolute md:relative inset-y-0 left-0 shadow-2xl md:shadow-none">
       {/* Header */}
       <div className="p-3 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2">

@@ -542,9 +542,9 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
             <button
               onClick={onOpenNodeSelector}
               title="Select Node (Router, Switch, Palo Alto, FortiGate, PC...)"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-500/40 text-sky-200 font-semibold transition cursor-pointer active:scale-95 text-xs shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold transition cursor-pointer active:scale-95 text-xs shadow-md shadow-sky-950/60"
             >
-              <Boxes className="h-3.5 w-3.5 text-sky-400" />
+              <Boxes className="h-3.5 w-3.5" />
               <span>Select Node</span>
             </button>
           )}

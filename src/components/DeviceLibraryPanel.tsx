@@ -38,8 +38,8 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
     { id: 'all', label: 'All', icon: <Boxes className="h-3.5 w-3.5" /> },
     { id: 'routers', label: 'Routers', icon: <Server className="h-3.5 w-3.5 text-emerald-400" /> },
     { id: 'switches', label: 'Switches', icon: <Layers className="h-3.5 w-3.5 text-sky-400" /> },
-    { id: 'firewalls', label: 'Firewalls (Palo/Forti)', icon: <Shield className="h-3.5 w-3.5 text-rose-400" /> },
-    { id: 'hosts', label: 'PCs (Win/Linux)', icon: <Monitor className="h-3.5 w-3.5 text-amber-400" /> },
+    { id: 'firewalls', label: 'Firewalls', icon: <Shield className="h-3.5 w-3.5 text-rose-400" /> },
+    { id: 'hosts', label: 'PCs (Win/Linux)', icon: <Monitor className="h-3.5 w-3.5 text-cyan-400" /> },
     { id: 'servers', label: 'Servers', icon: <Server className="h-3.5 w-3.5 text-purple-400" /> },
   ];
 
@@ -99,11 +99,11 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
         {onOpenNodeSelector && (
           <button
             onClick={onOpenNodeSelector}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md shadow-sky-950 transition active:scale-95"
-            title="Open Full Node Selection Dialog"
+            className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md shadow-sky-950 transition active:scale-95"
+            title="Open Select Node Dialog"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Select Node (Router, Switch, Palo, PC)</span>
+            <Boxes className="h-3.5 w-3.5" />
+            <span>Select Node</span>
           </button>
         )}
 
@@ -111,7 +111,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
           <input
             type="text"
-            placeholder="Filter routers, switches, PCs..."
+            placeholder="Search appliances, firewalls, PCs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-lg bg-slate-950 border border-slate-800 pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500"

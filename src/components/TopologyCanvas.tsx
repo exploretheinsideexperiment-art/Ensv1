@@ -28,6 +28,7 @@ interface TopologyCanvasProps {
   onCableEndpointSelect: (device: NetworkDevice, interfaceId?: string) => void;
   onDeleteLink: (linkId: string) => void;
   onAddDeviceFromDrop?: (tplId: string, x: number, y: number) => void;
+  onCanvasContextMenu?: (e: React.MouseEvent, canvasCoords: { x: number; y: number }) => void;
 }
 
 export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
@@ -50,6 +51,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
   onCableEndpointSelect,
   onDeleteLink,
   onAddDeviceFromDrop,
+  onCanvasContextMenu,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -206,6 +208,20 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
     return map;
   }, [devices]);
 
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement | SVGElement;
+    if (target.closest && (target.closest('[id^="device-node-"]') || target.closest('.device-node-container'))) {
+      return;
+    }
+    e.preventDefault();
+    if (onCanvasContextMenu && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const clickX = (e.clientX - rect.left - pan.x) / zoom;
+      const clickY = (e.clientY - rect.top - pan.y) / zoom;
+      onCanvasContextMenu(e, { x: Math.round(clickX), y: Math.round(clickY) });
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -217,6 +233,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
       onDrop={handleDrop}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onContextMenu={handleCanvasContextMenu}
       className={`relative w-full h-full overflow-hidden select-none bg-[#090e17] ${
         isPanning ? 'cursor-grab active:cursor-grabbing' : isCableToolActive ? 'cursor-crosshair' : 'cursor-default'
       }`}

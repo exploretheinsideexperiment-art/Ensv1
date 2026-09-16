@@ -54,10 +54,23 @@ export default function App() {
       const savedTpls = localStorage.getItem(STORAGE_KEY_TEMPLATES);
       if (savedTpls) {
         const parsed = JSON.parse(savedTpls);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Always ensure all built-in DEVICE_TEMPLATES (including Palo Alto, FortiGate, Windows PC, L3 Switch)
+          // are present, up-to-date, and merged with any custom user-added templates.
+          const defaultMap = new Map(DEVICE_TEMPLATES.map((dt) => [dt.id, dt]));
+          const customUserTemplates = parsed.filter((p: DeviceTemplate) => !defaultMap.has(p.id));
+          const merged = [...DEVICE_TEMPLATES, ...customUserTemplates];
+          localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(merged));
+          return merged;
+        }
       }
     } catch {
       // fallback
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(DEVICE_TEMPLATES));
+    } catch {
+      // ignore
     }
     return DEVICE_TEMPLATES;
   });
@@ -108,7 +121,12 @@ export default function App() {
   const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false);
   const [isPacketInspectorOpen, setIsPacketInspectorOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; device: NetworkDevice } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    device?: NetworkDevice | null;
+    canvasCoords?: { x: number; y: number };
+  } | null>(null);
 
   // Auto-close context menu on window click
   useEffect(() => {
@@ -870,6 +888,13 @@ export default function App() {
               const tpl = templates.find((t) => t.id === tplId);
               if (tpl) handleAddDeviceFromTemplate(tpl, x, y);
             }}
+            onCanvasContextMenu={(e, coords) => {
+              setContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                canvasCoords: coords,
+              });
+            }}
           />
 
           {/* Quick Floating Status Bar & Mobile Panel Toggles */}
@@ -1040,6 +1065,10 @@ export default function App() {
           }}
           onDuplicate={handleDuplicateDevice}
           onDelete={handleDeleteDevice}
+          onOpenNodeSelector={() => {
+            setIsNodeSelectorOpen(true);
+            setContextMenu(null);
+          }}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ interface DeviceLibraryPanelProps {
   templates: DeviceTemplate[];
   onAddDevice: (template: DeviceTemplate) => void;
   onOpenImageManager: () => void;
+  onOpenNodeSelector?: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -26,6 +27,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
   templates,
   onAddDevice,
   onOpenImageManager,
+  onOpenNodeSelector,
   isCollapsed,
   onToggleCollapse,
 }) => {
@@ -33,12 +35,12 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory | 'all'>('all');
 
   const categories: { id: DeviceCategory | 'all'; label: string; icon: React.ReactNode }[] = [
-    { id: 'all', label: 'All Devices', icon: <Boxes className="h-4 w-4" /> },
-    { id: 'routers', label: 'Routers', icon: <Server className="h-4 w-4 text-emerald-400" /> },
-    { id: 'switches', label: 'Switches', icon: <Layers className="h-4 w-4 text-sky-400" /> },
-    { id: 'firewalls', label: 'Firewalls', icon: <Shield className="h-4 w-4 text-rose-400" /> },
-    { id: 'hosts', label: 'PCs / End Hosts', icon: <Monitor className="h-4 w-4 text-amber-400" /> },
-    { id: 'servers', label: 'Servers', icon: <Server className="h-4 w-4 text-purple-400" /> },
+    { id: 'all', label: 'All', icon: <Boxes className="h-3.5 w-3.5" /> },
+    { id: 'routers', label: 'Routers', icon: <Server className="h-3.5 w-3.5 text-emerald-400" /> },
+    { id: 'switches', label: 'Switches', icon: <Layers className="h-3.5 w-3.5 text-sky-400" /> },
+    { id: 'firewalls', label: 'Firewalls (Palo/Forti)', icon: <Shield className="h-3.5 w-3.5 text-rose-400" /> },
+    { id: 'hosts', label: 'PCs (Win/Linux)', icon: <Monitor className="h-3.5 w-3.5 text-amber-400" /> },
+    { id: 'servers', label: 'Servers', icon: <Server className="h-3.5 w-3.5 text-purple-400" /> },
   ];
 
   const filteredTemplates = templates.filter((tpl) => {
@@ -92,8 +94,19 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="p-2.5 border-b border-slate-800/80">
+      {/* Search Input & Select Node Dialog Button */}
+      <div className="p-2.5 border-b border-slate-800/80 space-y-2">
+        {onOpenNodeSelector && (
+          <button
+            onClick={onOpenNodeSelector}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md shadow-sky-950 transition active:scale-95"
+            title="Open Full Node Selection Dialog"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Select Node (Router, Switch, Palo, PC)</span>
+          </button>
+        )}
+
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
           <input
@@ -154,9 +167,26 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
                     {tpl.category === 'servers' && <Server className="h-4 w-4 text-purple-400" />}
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-100 group-hover:text-white">
-                      {tpl.name}
-                    </h3>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-xs font-bold text-slate-100 group-hover:text-white">
+                        {tpl.name}
+                      </h3>
+                      {tpl.vendor.toLowerCase().includes('palo') && (
+                        <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          PA
+                        </span>
+                      )}
+                      {tpl.vendor.toLowerCase().includes('fortinet') && (
+                        <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          FortiOS
+                        </span>
+                      )}
+                      {tpl.name.toLowerCase().includes('windows') && (
+                        <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                          Win11
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-400 font-mono">{tpl.vendor}</p>
                   </div>
                 </div>

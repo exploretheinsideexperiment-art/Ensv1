@@ -21,6 +21,7 @@ import { PacketInspectorModal } from './components/PacketInspectorModal';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { HelpAboutModal } from './components/HelpAboutModal';
 import { CanvasContextMenu } from './components/CanvasContextMenu';
+import { NodeSelectorModal } from './components/NodeSelectorModal';
 import { Terminal, HardDrive, Smartphone, Activity, Play, Pause, Square, Link as LinkIcon, Plus } from 'lucide-react';
 
 const STORAGE_KEY_SAVED_PROJECTS = 'ensv1_saved_topologies';
@@ -101,6 +102,7 @@ export default function App() {
   });
 
   // 7. Modals
+  const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState(false);
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
   const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false);
@@ -339,7 +341,22 @@ export default function App() {
   // DEVICE ADDITION
   const handleAddDeviceFromTemplate = (template: DeviceTemplate, dropX?: number, dropY?: number) => {
     const count = currentProject.devices.filter((d) => d.type === template.type).length + 1;
-    const prefix = template.type === 'router' ? 'R' : template.type === 'switch' ? 'SW' : template.type === 'firewall' ? 'FW' : 'Host';
+    let prefix = 'Host';
+    if (template.name.toLowerCase().includes('palo') || template.vendor.toLowerCase().includes('palo')) {
+      prefix = 'PA-FW';
+    } else if (template.name.toLowerCase().includes('forti') || template.vendor.toLowerCase().includes('fortinet')) {
+      prefix = 'FGT-FW';
+    } else if (template.type === 'router') {
+      prefix = 'R';
+    } else if (template.type === 'switch') {
+      prefix = 'SW';
+    } else if (template.type === 'firewall') {
+      prefix = 'FW';
+    } else if (template.name.toLowerCase().includes('windows')) {
+      prefix = 'PC-Win';
+    } else {
+      prefix = 'PC';
+    }
     const newName = `${prefix}${count}`;
 
     const newDevice: NetworkDevice = {
@@ -767,6 +784,7 @@ export default function App() {
         onToggleGridSnap={() => setGridSnap((prev) => !prev)}
         onOpenConsoleAll={handleOpenConsoleAll}
         onOpenImageManager={() => setIsImageManagerOpen(true)}
+        onOpenNodeSelector={() => setIsNodeSelectorOpen(true)}
         onOpenPWAInstall={() => setIsPWAInstallOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         onSelectPresetLab={(labId) => {
@@ -793,6 +811,7 @@ export default function App() {
           templates={templates}
           onAddDevice={(tpl) => handleAddDeviceFromTemplate(tpl)}
           onOpenImageManager={() => setIsImageManagerOpen(true)}
+          onOpenNodeSelector={() => setIsNodeSelectorOpen(true)}
           isCollapsed={leftPanelCollapsed}
           onToggleCollapse={() => setLeftPanelCollapsed((prev) => !prev)}
         />
@@ -996,7 +1015,15 @@ export default function App() {
         onOpenPWAInstall={() => setIsPWAInstallOpen(true)}
       />
 
-      {/* 10. Canvas Right-Click Context Menu */}
+      {/* 10. Node Selector Modal (Router, Switch, Palo Alto, FortiGate, PC) */}
+      <NodeSelectorModal
+        isOpen={isNodeSelectorOpen}
+        onClose={() => setIsNodeSelectorOpen(false)}
+        templates={templates}
+        onSelectNode={(tpl) => handleAddDeviceFromTemplate(tpl)}
+      />
+
+      {/* 11. Canvas Right-Click Context Menu */}
       {contextMenu && (
         <CanvasContextMenu
           x={contextMenu.x}

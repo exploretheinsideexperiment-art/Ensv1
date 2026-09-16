@@ -18,6 +18,15 @@ export interface CliExecutionResult {
 export class NetworkCLI {
   static getPrompt(device: NetworkDevice, session: CliSessionState): string {
     const name = device.name;
+    if (device.config.osType === 'windows') {
+      return `C:\\Users\\Admin> `;
+    }
+    if (device.config.osType === 'palo_alto') {
+      return session.mode === 'config' ? `admin@${name}# ` : `admin@${name}> `;
+    }
+    if (device.config.osType === 'fortigate') {
+      return session.mode === 'config' ? `${name} (global) # ` : `${name} # `;
+    }
     if (device.config.osType === 'generic_linux') {
       return `${name.toLowerCase()}:~$ `;
     }
@@ -49,11 +58,197 @@ export class NetworkCLI {
       return { output: [], newPrompt: this.getPrompt(device, session) };
     }
 
-    if (device.config.osType === 'generic_linux') {
+    if (device.config.osType === 'generic_linux' || device.config.osType === 'windows') {
       return this.executeLinux(cmd, device, session, allDevices);
+    } else if (device.config.osType === 'palo_alto') {
+      return this.executePaloAlto(cmd, device, session, allDevices);
+    } else if (device.config.osType === 'fortigate') {
+      return this.executeFortigate(cmd, device, session, allDevices);
     } else {
       return this.executeCisco(cmd, device, session, allDevices);
     }
+  }
+
+  // Palo Alto PAN-OS CLI Processor
+  private static executePaloAlto(
+    cmd: string,
+    device: NetworkDevice,
+    session: CliSessionState,
+    allDevices: NetworkDevice[]
+  ): CliExecutionResult {
+    const parts = cmd.split(/\s+/);
+    const primary = parts[0].toLowerCase();
+    const rest = parts.slice(1).join(' ').toLowerCase();
+
+    if (primary === 'clear') {
+      return { output: ['__CLEAR__'], newPrompt: this.getPrompt(device, session) };
+    }
+
+    if (primary === 'configure' || primary === 'conf') {
+      session.mode = 'config';
+      return {
+        output: ['Entering configuration mode', '[edit]'],
+        newPrompt: this.getPrompt(device, session),
+      };
+    }
+
+    if (primary === 'exit' || primary === 'quit') {
+      if (session.mode === 'config') {
+        session.mode = 'user';
+        return { output: ['Exiting configuration mode.'], newPrompt: this.getPrompt(device, session) };
+      }
+      return { output: ['Connection closed.'], newPrompt: this.getPrompt(device, session) };
+    }
+
+    if (primary === 'commit') {
+      return {
+        output: [
+          'Commit job 1 is in progress...',
+          'Configuration committed successfully',
+        ],
+        newPrompt: this.getPrompt(device, session),
+      };
+    }
+
+    if (primary === 'show') {
+      if (rest.includes('interface') || rest.includes('interfaces') || rest === 'int') {
+        const lines = [
+          'total interfaces: ' + device.config.interfaces.length,
+          'name               id    vsys zone             forwarding          ip address',
+          '--------------------------------------------------------------------------------',
+        ];
+        device.config.interfaces.forEach((iface, idx) => {
+          const ip = iface.ipAddress || 'unassigned';
+          const zone = iface.name.includes('mgmt') ? 'management' : idx % 2 === 0 ? 'trust' : 'untrust';
+          lines.push(
+            `${iface.name.padEnd(18)} ${(idx + 1).toString().padEnd(5)} 1    ${zone.padEnd(16)} default             ${ip}`
+          );
+        });
+        return { output: lines, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (rest.includes('system info') || rest.includes('system')) {
+        return {
+          output: [
+            `hostname: ${device.name}`,
+            `ip-address: ${device.config.interfaces[0]?.ipAddress || '192.168.1.1'}`,
+            `netmask: 255.255.255.0`,
+            `default-gateway: 192.168.1.254`,
+            `model: PA-VM`,
+            `sw-version: 11.1.0`,
+            `app-version: 8820-8432`,
+            `threat-version: 8820-8432`,
+            `url-filtering-version: 0000.00.00.000`,
+            `plugin_versions: { vm_series: 3.2.1 }`,
+            `operational-mode: normal`,
+          ],
+          newPrompt: this.getPrompt(device, session),
+        };
+      }
+
+      if (rest.includes('routing') || rest.includes('route')) {
+        const lines = [
+          'flags: A:active, ?:loose, C:connect, H:host, S:static, ~:internal, R:rip, O:ospf, B:bgp',
+          'VIRTUAL ROUTER: default (id 1)',
+          '==========',
+          'destination          nexthop          metric flags interface',
+          '-----------------------------------------------------------------',
+        ];
+        device.config.interfaces.forEach((i) => {
+          if (i.ipAddress) {
+            lines.push(`${i.ipAddress}/24`.padEnd(20) + `0.0.0.0`.padEnd(17) + `0      A C   ${i.name}`);
+          }
+        });
+        return { output: lines, newPrompt: this.getPrompt(device, session) };
+      }
+    }
+
+    if (primary === 'ping') {
+      return this.handleLinuxPing(parts, device, allDevices, session);
+    }
+
+    return {
+      output: [
+        `Unknown syntax: "${cmd}". Type "show interface all", "show system info", "configure", or "ping <ip>".`,
+      ],
+      newPrompt: this.getPrompt(device, session),
+    };
+  }
+
+  // Fortinet FortiOS CLI Processor
+  private static executeFortigate(
+    cmd: string,
+    device: NetworkDevice,
+    session: CliSessionState,
+    allDevices: NetworkDevice[]
+  ): CliExecutionResult {
+    const parts = cmd.split(/\s+/);
+    const primary = parts[0].toLowerCase();
+    const rest = parts.slice(1).join(' ').toLowerCase();
+
+    if (primary === 'clear') {
+      return { output: ['__CLEAR__'], newPrompt: this.getPrompt(device, session) };
+    }
+
+    if (primary === 'get') {
+      if (rest.includes('system status')) {
+        return {
+          output: [
+            `Version: FortiGate-VM64-KVM v7.4.2,build2571,240207 (GA.F)`,
+            `Virus-DB: 91.00282(2026-09-16 04:32)`,
+            `Extended DB: 91.00282(2026-09-16 04:32)`,
+            `Extreme DB: 91.00282(2026-09-16 04:32)`,
+            `IPS-DB: 6.00741(2026-09-16 03:10)`,
+            `FortiClient application signature package: 6.00741(2026-09-16 03:10)`,
+            `Serial-Number: FGVM08TM24001942`,
+            `BIOS version: 04000002`,
+            `System Part-Number: P24712-01`,
+            `Hostname: ${device.name}`,
+            `Operation Mode: NAT`,
+            `Current virtual domain: root`,
+            `Max number of virtual domains: 10`,
+            `Virtual domains status: 1 in NAT mode, 0 in TP mode`,
+            `Virtual domain configuration: disable`,
+            `FIPS-CC mode: disable`,
+            `Current HA mode: standalone`,
+          ],
+          newPrompt: this.getPrompt(device, session),
+        };
+      }
+    }
+
+    if (primary === 'show') {
+      if (rest.includes('system interface') || rest.includes('interface')) {
+        const lines = [`config system interface`];
+        device.config.interfaces.forEach((iface) => {
+          lines.push(`    edit "${iface.name}"`);
+          lines.push(`        set vdom "root"`);
+          lines.push(`        set ip ${iface.ipAddress || '0.0.0.0'} 255.255.255.0`);
+          lines.push(`        set allowaccess ping https ssh http`);
+          lines.push(`        set type physical`);
+          lines.push(`        set snmp-index ${(Math.random() * 10).toFixed(0)}`);
+          lines.push(`    next`);
+        });
+        lines.push(`end`);
+        return { output: lines, newPrompt: this.getPrompt(device, session) };
+      }
+    }
+
+    if (primary === 'execute' && parts[1]?.toLowerCase() === 'ping') {
+      return this.handleLinuxPing(['ping', ...parts.slice(2)], device, allDevices, session);
+    }
+
+    if (primary === 'ping') {
+      return this.handleLinuxPing(parts, device, allDevices, session);
+    }
+
+    return {
+      output: [
+        `command parse error before '${cmd}'`,
+        `Type "get system status", "show system interface", or "execute ping <ip>".`,
+      ],
+      newPrompt: this.getPrompt(device, session),
+    };
   }
 
   // Cisco IOS & Quagga CLI Processor

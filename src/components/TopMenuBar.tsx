@@ -20,6 +20,7 @@ import {
   Smartphone,
   Check,
   ChevronDown,
+  Boxes,
 } from 'lucide-react';
 import { ENSProject } from '../types/network';
 
@@ -47,6 +48,7 @@ interface TopMenuBarProps {
   onToggleGridSnap: () => void;
   onOpenConsoleAll: () => void;
   onOpenImageManager: () => void;
+  onOpenNodeSelector?: () => void;
   onOpenPWAInstall: () => void;
   onOpenHelp: () => void;
   onSelectPresetLab: (labId: string) => void;
@@ -76,6 +78,7 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   onToggleGridSnap,
   onOpenConsoleAll,
   onOpenImageManager,
+  onOpenNodeSelector,
   onOpenPWAInstall,
   onOpenHelp,
   onSelectPresetLab,
@@ -342,8 +345,20 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
               {activeMenu === 'devices' && (
                 <div
                   onMouseLeave={closeMenu}
-                  className="absolute left-0 top-full mt-1 w-56 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl z-50 text-xs animate-in fade-in-50"
+                  className="absolute left-0 top-full mt-1 w-64 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl z-50 text-xs animate-in fade-in-50"
                 >
+                  {onOpenNodeSelector && (
+                    <button
+                      onClick={() => {
+                        onOpenNodeSelector();
+                        closeMenu();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-sky-600/20 text-sky-300 font-bold border-b border-slate-800"
+                    >
+                      <Boxes className="h-4 w-4 text-sky-400" />
+                      <span>Select Node (Router, Switch, Palo, PC)...</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       onOpenImageManager();
@@ -521,6 +536,18 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
           </div>
 
           <div className="h-4 w-px bg-slate-800 mx-1" />
+
+          {/* Select Node Button */}
+          {onOpenNodeSelector && (
+            <button
+              onClick={onOpenNodeSelector}
+              title="Select Node (Router, Switch, Palo Alto, FortiGate, PC...)"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-500/40 text-sky-200 font-semibold transition cursor-pointer active:scale-95 text-xs shadow-sm"
+            >
+              <Boxes className="h-3.5 w-3.5 text-sky-400" />
+              <span>Select Node</span>
+            </button>
+          )}
 
           {/* Topology Tools */}
           <button

@@ -60,19 +60,47 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
         };
         setSessions((prev) => ({ ...prev, [id]: initialSession }));
 
-        const initialBanner =
-          dev.config.osType === 'generic_linux'
-            ? [
-                `ENSv1 Virtual Workstation Linux Terminal [Device: ${dev.name}]`,
-                `Type "help" for network diagnosis commands (ping, ip a, traceroute, curl).`,
-                ``,
-              ]
-            : [
-                `ENSv1 Interactive Console Subsystem [Device: ${dev.name}]`,
-                `Operating System: Cisco IOS / Quagga Virtual Machine Engine`,
-                `Type "enable" for privileged commands, "show ip int br" for interfaces, "help" for command list.`,
-                ``,
-              ];
+        let initialBanner: string[] = [];
+        if (dev.config.osType === 'palo_alto') {
+          initialBanner = [
+            `==================================================================`,
+            `Palo Alto Networks PA-VM Virtual Appliance (PAN-OS 11.1.0)`,
+            `Device Hostname: ${dev.name} | Vendor: Palo Alto Networks, Inc.`,
+            `Type "show interface all", "show system info", "configure", or "ping <ip>".`,
+            `==================================================================`,
+            ``,
+          ];
+        } else if (dev.config.osType === 'fortigate') {
+          initialBanner = [
+            `==================================================================`,
+            `Fortinet FortiGate-VM64-KVM (FortiOS 7.4.2)`,
+            `Device Hostname: ${dev.name} | Security Fabric Subsystem Active`,
+            `Type "get system status", "show system interface", or "execute ping <ip>".`,
+            `==================================================================`,
+            ``,
+          ];
+        } else if (dev.config.osType === 'windows') {
+          initialBanner = [
+            `Microsoft Windows [Version 10.0.26100.1]`,
+            `(c) Microsoft Corporation. All rights reserved.`,
+            `Lab Client: ${dev.name}`,
+            `Type "ipconfig", "ping <ip>", "tracert <ip>", or "help".`,
+            ``,
+          ];
+        } else if (dev.config.osType === 'generic_linux') {
+          initialBanner = [
+            `ENSv1 Virtual Workstation Linux Terminal [Device: ${dev.name}]`,
+            `Type "help" for network diagnosis commands (ping, ip a, traceroute, curl).`,
+            ``,
+          ];
+        } else {
+          initialBanner = [
+            `ENSv1 Interactive Console Subsystem [Device: ${dev.name}]`,
+            `Operating System: Cisco IOS / Quagga Virtual Machine Engine`,
+            `Type "enable" for privileged commands, "show ip int br" for interfaces, "help" for command list.`,
+            ``,
+          ];
+        }
 
         setTerminalLogs((prev) => ({
           ...prev,

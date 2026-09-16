@@ -78,10 +78,96 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
           </g>
         );
 
-      case 'firewall':
+      case 'firewall': {
+        const isPaloAlto =
+          device.vendor.toLowerCase().includes('palo') ||
+          device.name.toLowerCase().includes('palo') ||
+          device.model.toLowerCase().includes('pa-');
+        const isFortigate =
+          device.vendor.toLowerCase().includes('fortinet') ||
+          device.name.toLowerCase().includes('forti') ||
+          device.model.toLowerCase().includes('forti');
+
+        if (isPaloAlto) {
+          return (
+            <g>
+              {/* Palo Alto Networks Next-Gen Firewall Shield */}
+              <path
+                d="M 40,10 L 68,20 C 68,48 40,64 40,64 C 40,64 12,48 12,20 Z"
+                fill="#ea580c"
+                stroke="#fed7aa"
+                strokeWidth="2"
+              />
+              {/* Inner Dark Core */}
+              <path
+                d="M 40,16 L 62,24 C 62,44 40,57 40,57 C 40,57 18,44 18,24 Z"
+                fill="#7c2d12"
+              />
+              {/* PA Badge */}
+              <text
+                x="40"
+                y="38"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="12"
+                fontWeight="900"
+                fontFamily="sans-serif"
+                letterSpacing="1"
+              >
+                PA
+              </text>
+              <rect x="25" y="42" width="30" height="9" rx="3" fill="#ea580c" />
+              <text
+                x="40"
+                y="49"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="6"
+                fontWeight="bold"
+                fontFamily="monospace"
+              >
+                NGFW
+              </text>
+            </g>
+          );
+        }
+
+        if (isFortigate) {
+          return (
+            <g>
+              {/* Fortinet FortiGate Red Fortress Shield */}
+              <path
+                d="M 40,10 L 68,20 C 68,48 40,64 40,64 C 40,64 12,48 12,20 Z"
+                fill="#dc2626"
+                stroke="#fca5a5"
+                strokeWidth="2"
+              />
+              {/* Fortinet Grid Pattern */}
+              <rect x="26" y="24" width="28" height="20" rx="3" fill="#450a0a" stroke="#ef4444" strokeWidth="1" />
+              <rect x="29" y="27" width="5" height="6" fill="#f87171" />
+              <rect x="37" y="27" width="6" height="6" fill="#f87171" />
+              <rect x="46" y="27" width="5" height="6" fill="#f87171" />
+              <rect x="29" y="35" width="5" height="6" fill="#f87171" />
+              <rect x="37" y="35" width="6" height="6" fill="#ffffff" />
+              <rect x="46" y="35" width="5" height="6" fill="#f87171" />
+              <text
+                x="40"
+                y="53"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="6.5"
+                fontWeight="bold"
+                fontFamily="monospace"
+              >
+                FORTIGATE
+              </text>
+            </g>
+          );
+        }
+
         return (
           <g>
-            {/* Firewall Shield with Brick Pattern */}
+            {/* Generic Firewall Shield with Brick Pattern */}
             <path
               d="M 40,12 L 68,22 C 68,48 40,62 40,62 C 40,62 12,48 12,22 Z"
               fill="#b91c1c"
@@ -97,29 +183,46 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
             <line x1="50" y1="38" x2="50" y2="48" stroke="#fca5a5" strokeWidth="1.5" />
           </g>
         );
+      }
 
-      case 'host':
+      case 'host': {
+        const isWindows =
+          device.model.toLowerCase().includes('windows') ||
+          device.name.toLowerCase().includes('win');
+
         return (
           <g>
-            {/* Workstation PC Monitor matching user's GNS3 screenshot! */}
-            {/* Screen frame */}
+            {/* Workstation PC Monitor */}
             <rect x="15" y="12" width="50" height="36" rx="4" fill="#cbd5e1" stroke="#475569" strokeWidth="2" />
             {/* CRT / LCD Glass */}
-            <rect x="19" y="16" width="42" height="28" rx="2" fill="#0284c7" />
-            {/* Waveform / Net activity graph on screen */}
-            <polyline
-              points="22,30 28,30 32,22 36,36 40,24 45,34 50,30 57,30"
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <rect x="19" y="16" width="42" height="28" rx="2" fill={isWindows ? '#0369a1' : '#0284c7'} />
+
+            {isWindows ? (
+              /* Windows 4-Square Logo on screen */
+              <g transform="translate(32, 22)">
+                <rect x="0" y="0" width="7" height="7" fill="#38bdf8" />
+                <rect x="9" y="0" width="7" height="7" fill="#38bdf8" />
+                <rect x="0" y="9" width="7" height="7" fill="#38bdf8" />
+                <rect x="9" y="9" width="7" height="7" fill="#38bdf8" />
+              </g>
+            ) : (
+              /* Waveform / Net activity graph on screen */
+              <polyline
+                points="22,30 28,30 32,22 36,36 40,24 45,34 50,30 57,30"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+
             {/* Monitor Stand Base */}
             <polygon points="35,48 45,48 47,56 33,56" fill="#64748b" stroke="#334155" strokeWidth="1" />
             <rect x="25" y="56" width="30" height="4" rx="2" fill="#94a3b8" />
           </g>
         );
+      }
 
       case 'server':
         return (

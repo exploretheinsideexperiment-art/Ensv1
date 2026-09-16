@@ -44,7 +44,7 @@ export interface NetworkInterface {
 
 export interface DeviceConfig {
   hostname: string;
-  osType: 'cisco_ios' | 'linux_quagga' | 'vyos' | 'pfsense' | 'generic_linux';
+  osType: 'cisco_ios' | 'linux_quagga' | 'vyos' | 'pfsense' | 'generic_linux' | 'palo_alto' | 'fortigate' | 'windows';
   interfaces: NetworkInterface[];
   routingProtocols: {
     ospf?: {

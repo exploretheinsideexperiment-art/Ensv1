@@ -1,11 +1,13 @@
 import React from 'react';
-import { Play, Square, RotateCcw, Terminal, Link, Copy, Trash2, Boxes } from 'lucide-react';
-import { NetworkDevice } from '../types/network';
+import { Play, Square, RotateCcw, Terminal, Link as LinkIcon, Copy, Trash2, Boxes } from 'lucide-react';
+import { NetworkDevice, NetworkLink } from '../types/network';
 
 interface CanvasContextMenuProps {
   x: number;
   y: number;
   device?: NetworkDevice | null;
+  link?: NetworkLink | null;
+  selectedCount?: number;
   onClose: () => void;
   onStart?: (deviceId: string) => void;
   onStop?: (deviceId: string) => void;
@@ -14,6 +16,8 @@ interface CanvasContextMenuProps {
   onStartCable?: (device: NetworkDevice) => void;
   onDuplicate?: (deviceId: string) => void;
   onDelete?: (deviceId: string) => void;
+  onDeleteLink?: (linkId: string) => void;
+  onDeleteSelected?: () => void;
   onOpenNodeSelector?: () => void;
 }
 
@@ -21,6 +25,8 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
   x,
   y,
   device,
+  link,
+  selectedCount = 0,
   onClose,
   onStart,
   onStop,
@@ -29,6 +35,8 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
   onStartCable,
   onDuplicate,
   onDelete,
+  onDeleteLink,
+  onDeleteSelected,
   onOpenNodeSelector,
 }) => {
   // 1. Device Context Menu (right clicked on a device)
@@ -37,11 +45,11 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
       <div
         style={{ left: `${x}px`, top: `${y}px` }}
         onClick={(e) => e.stopPropagation()}
-        className="fixed z-50 w-52 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl text-xs text-slate-200 animate-in fade-in-50 select-none"
+        className="fixed z-50 w-56 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl text-xs text-slate-200 animate-in fade-in-50 select-none"
         id="canvas-context-menu"
       >
         <div className="px-3 py-1 font-bold text-white border-b border-slate-800 flex items-center justify-between">
-          <span>{device.name}</span>
+          <span className="truncate">{device.name}</span>
           <span className="text-[10px] text-slate-400 capitalize">{device.status}</span>
         </div>
 
@@ -99,7 +107,7 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
             }}
             className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-800 text-amber-300"
           >
-            <Link className="h-3.5 w-3.5 text-amber-400" />
+            <LinkIcon className="h-3.5 w-3.5 text-amber-400" />
             <span>Connect Cable</span>
           </button>
 
@@ -116,22 +124,69 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
             <span>Duplicate Node</span>
           </button>
 
+          {selectedCount > 1 ? (
+            <button
+              onClick={() => {
+                onDeleteSelected?.();
+                onClose();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-600/20 text-rose-400 font-semibold"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete All Selected ({selectedCount})</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                onDelete?.(device.id);
+                onClose();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-600/20 text-rose-400 font-semibold"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete Node ({device.name})</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Link Context Menu (right clicked on a cable link)
+  if (link) {
+    return (
+      <div
+        style={{ left: `${x}px`, top: `${y}px` }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed z-50 w-52 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl text-xs text-slate-200 animate-in fade-in-50 select-none"
+        id="canvas-link-context-menu"
+      >
+        <div className="px-3 py-1 font-bold text-white border-b border-slate-800 flex items-center justify-between">
+          <span>Virtual Cable</span>
+          <span className="text-[10px] text-slate-400 capitalize">{link.type}</span>
+        </div>
+
+        <div className="py-1">
           <button
             onClick={() => {
-              onDelete?.(device.id);
+              if (selectedCount > 1 && onDeleteSelected) {
+                onDeleteSelected();
+              } else {
+                onDeleteLink?.(link.id);
+              }
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-red-600/20 text-red-400"
+            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-600/20 text-rose-400 font-semibold"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span>Delete Node</span>
+            <span>Delete Cable Link</span>
           </button>
         </div>
       </div>
     );
   }
 
-  // 2. Empty Canvas Context Menu (right clicked on empty space)
+  // 3. Empty Canvas Context Menu (right clicked on empty space)
   return (
     <div
       style={{ left: `${x}px`, top: `${y}px` }}
@@ -153,8 +208,21 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-sky-600/20 text-sky-300 font-semibold"
         >
           <Boxes className="h-4 w-4 text-sky-400" />
-          <span>Select Node...</span>
+          <span>Add / Select Node...</span>
         </button>
+
+        {selectedCount > 0 && (
+          <button
+            onClick={() => {
+              onDeleteSelected?.();
+              onClose();
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-600/20 text-rose-400 font-semibold"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete Selected ({selectedCount})</span>
+          </button>
+        )}
       </div>
     </div>
   );

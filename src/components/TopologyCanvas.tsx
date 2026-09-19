@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Trash2, X, Link as LinkIcon, Server, Terminal, Play, Square } from 'lucide-react';
 import {
   NetworkDevice,
   NetworkLink,
@@ -14,19 +15,24 @@ interface TopologyCanvasProps {
   annotations: LabAnnotation[];
   selectedDeviceId: string | null;
   selectedLinkId: string | null;
+  selectedDeviceIds?: string[];
+  selectedLinkIds?: string[];
   isCableToolActive: boolean;
   cableSourceDevice: NetworkDevice | null;
   showInterfaceLabels: boolean;
   packetAnimationActive: boolean;
   simulatedPackets: SimulatedPacket[];
   gridSnap: boolean;
-  onSelectDevice: (device: NetworkDevice | null) => void;
-  onSelectLink: (link: NetworkLink | null) => void;
+  onSelectDevice: (device: NetworkDevice | null, multi?: boolean) => void;
+  onSelectLink: (link: NetworkLink | null, multi?: boolean) => void;
+  onDeleteSelected?: () => void;
+  onClearSelection?: () => void;
   onMoveDevice: (deviceId: string, x: number, y: number) => void;
   onDeviceContextMenu: (e: React.MouseEvent, device: NetworkDevice) => void;
   onDeviceDoubleClick: (device: NetworkDevice) => void;
   onCableEndpointSelect: (device: NetworkDevice, interfaceId?: string) => void;
   onDeleteLink: (linkId: string) => void;
+  onLinkContextMenu?: (e: React.MouseEvent, link: NetworkLink) => void;
   onAddDeviceFromDrop?: (tplId: string, x: number, y: number) => void;
   onCanvasContextMenu?: (e: React.MouseEvent, canvasCoords: { x: number; y: number }) => void;
 }
@@ -37,6 +43,8 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
   annotations,
   selectedDeviceId,
   selectedLinkId,
+  selectedDeviceIds = [],
+  selectedLinkIds = [],
   isCableToolActive,
   cableSourceDevice,
   showInterfaceLabels,
@@ -45,11 +53,14 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
   gridSnap,
   onSelectDevice,
   onSelectLink,
+  onDeleteSelected,
+  onClearSelection,
   onMoveDevice,
   onDeviceContextMenu,
   onDeviceDoubleClick,
   onCableEndpointSelect,
   onDeleteLink,
+  onLinkContextMenu,
   onAddDeviceFromDrop,
   onCanvasContextMenu,
 }) => {
@@ -187,7 +198,8 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
     }
 
     if (e.button === 0) {
-      onSelectDevice(device);
+      const isMulti = e.shiftKey || e.ctrlKey || e.metaKey;
+      onSelectDevice(device, isMulti);
       setDraggingDeviceId(device.id);
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -321,7 +333,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
 
-            const isLinkSelected = selectedLinkId === link.id;
+            const isLinkSelected = selectedLinkId === link.id || selectedLinkIds.includes(link.id);
 
             // Find exact interface objects on both sides
             const srcIf = src.config?.interfaces?.find(
@@ -387,7 +399,13 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                 key={link.id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelectLink(link);
+                  const isMulti = e.shiftKey || e.ctrlKey || e.metaKey;
+                  onSelectLink(link, isMulti);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onLinkContextMenu?.(e, link);
                 }}
                 className="cursor-pointer group"
                 id={`network-link-${link.id}`}
@@ -572,7 +590,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             <DeviceNode
               key={dev.id}
               device={dev}
-              isSelected={selectedDeviceId === dev.id}
+              isSelected={selectedDeviceId === dev.id || selectedDeviceIds.includes(dev.id)}
               isConnectingCable={isCableToolActive}
               isCableSource={cableSourceDevice?.id === dev.id}
               showInterfaceLabels={showInterfaceLabels}
@@ -588,6 +606,79 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
           ))}
         </g>
       </svg>
+
+      {/* Floating Selection & Delete Action Bar (Shows count of selected nodes & cables + Quick Delete) */}
+      {(() => {
+        const devCount = selectedDeviceIds.length > 0 ? selectedDeviceIds.length : selectedDeviceId ? 1 : 0;
+        const linkCount = selectedLinkIds.length > 0 ? selectedLinkIds.length : selectedLinkId ? 1 : 0;
+        const totalCount = devCount + linkCount;
+
+        if (totalCount === 0 || isCableToolActive) return null;
+
+        let summaryText = '';
+        if (devCount === 1 && linkCount === 0) {
+          const activeDevId = selectedDeviceIds[0] || selectedDeviceId;
+          const dev = devices.find((d) => d.id === activeDevId);
+          summaryText = dev ? `Node: ${dev.name}` : '1 Node';
+        } else if (linkCount === 1 && devCount === 0) {
+          const activeLinkId = selectedLinkIds[0] || selectedLinkId;
+          const lk = links.find((l) => l.id === activeLinkId);
+          if (lk) {
+            const sDev = devices.find((d) => d.id === lk.sourceDeviceId);
+            const tDev = devices.find((d) => d.id === lk.targetDeviceId);
+            summaryText = sDev && tDev ? `Cable: ${sDev.name} ↔ ${tDev.name}` : '1 Cable';
+          } else {
+            summaryText = '1 Cable';
+          }
+        } else {
+          const parts: string[] = [];
+          if (devCount > 0) parts.push(`${devCount} ${devCount === 1 ? 'Node' : 'Nodes'}`);
+          if (linkCount > 0) parts.push(`${linkCount} ${linkCount === 1 ? 'Cable' : 'Cables'}`);
+          summaryText = parts.join(', ');
+        }
+
+        return (
+          <div
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-2xl border border-sky-500/50 bg-[#070e1b]/95 px-3.5 py-1.5 shadow-2xl backdrop-blur-md text-xs text-slate-200 animate-in slide-in-from-top-3 select-none"
+            id="canvas-selection-action-bar"
+          >
+            {/* Selected Count Indicator */}
+            <div className="flex items-center gap-1.5 font-bold text-sky-400">
+              <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+              <span>{totalCount} Selected:</span>
+            </div>
+
+            {/* Item details badge */}
+            <span className="max-w-[260px] truncate font-semibold text-white px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[11px]">
+              {summaryText}
+            </span>
+
+            <div className="h-4 w-px bg-slate-700 mx-0.5" />
+
+            {/* Delete Button (Vibrant red with trash icon) */}
+            <button
+              onClick={onDeleteSelected}
+              title="Delete Selected Items (Delete / Backspace key)"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition shadow-md shadow-rose-950/60 active:scale-95 cursor-pointer"
+              id="canvas-delete-selected-btn"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </button>
+
+            {/* Clear Selection Button */}
+            {onClearSelection && (
+              <button
+                onClick={onClearSelection}
+                title="Clear Selection (Escape key)"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Floating Canvas Quick Controls (Zoom, Pan reset, Grid status) */}
       <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-1.5 shadow-xl backdrop-blur-md text-xs text-slate-300">

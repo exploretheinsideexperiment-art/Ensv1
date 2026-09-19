@@ -76,10 +76,14 @@ export default function App() {
   });
 
   // 3. Selection & Tools State
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(() => {
-    return DEFAULT_PRESET_LAB?.devices?.[0]?.id || null;
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>(() => {
+    return DEFAULT_PRESET_LAB?.devices?.[0]?.id ? [DEFAULT_PRESET_LAB.devices[0].id] : [];
   });
-  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
+
+  // Primary active single device/link for properties panel
+  const selectedDeviceId = selectedDeviceIds.length > 0 ? selectedDeviceIds[selectedDeviceIds.length - 1] : null;
+  const selectedLinkId = selectedLinkIds.length > 0 ? selectedLinkIds[selectedLinkIds.length - 1] : null;
 
   const [isCableToolActive, setIsCableToolActive] = useState(false);
   const [cableSourceDevice, setCableSourceDevice] = useState<NetworkDevice | null>(null);
@@ -125,6 +129,7 @@ export default function App() {
     x: number;
     y: number;
     device?: NetworkDevice | null;
+    link?: NetworkLink | null;
     canvasCoords?: { x: number; y: number };
   } | null>(null);
 
@@ -135,22 +140,42 @@ export default function App() {
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
-  // Keyboard shortcut listener (e.g. 'c' for cable tool, Ctrl+S for save)
+  // Keyboard shortcut listener (e.g. 'c' for cable tool, Del/Backspace for delete, Ctrl+S for save)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
-        return;
-      }
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable ||
+          Boolean(activeEl.closest('.xterm')));
+
       if (e.key === 'c' || e.key === 'C') {
-        setIsCableToolActive((prev) => {
-          if (prev) setCableSourceDevice(null);
-          return !prev;
-        });
+        if (!isInput) {
+          setIsCableToolActive((prev) => {
+            if (prev) setCableSourceDevice(null);
+            return !prev;
+          });
+        }
       }
       if (e.key === 'Escape') {
         setIsCableToolActive(false);
         setCableSourceDevice(null);
         setContextMenu(null);
+        setSelectedDeviceIds([]);
+        setSelectedLinkIds([]);
+      }
+      if (!isInput) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          handleDeleteSelected();
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+          e.preventDefault();
+          setSelectedDeviceIds(currentProject.devices.map((d) => d.id));
+          setSelectedLinkIds(currentProject.links.map((l) => l.id));
+        }
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -159,7 +184,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProject]);
+  }, [currentProject, selectedDeviceIds, selectedLinkIds]);
 
   // Periodic packet animation runner (Running active, Hold frozen, Stop cleared)
   useEffect(() => {
@@ -298,8 +323,8 @@ export default function App() {
       ],
     };
     setCurrentProject(newProj);
-    setSelectedDeviceId(null);
-    setSelectedLinkId(null);
+    setSelectedDeviceIds([]);
+    setSelectedLinkIds([]);
     setOpenConsoleDeviceIds([]);
     setActiveConsoleDeviceId(null);
     setHasUnsavedChanges(false);
@@ -308,8 +333,8 @@ export default function App() {
   const handleLoadProject = (project: ENSProject) => {
     const cloned = JSON.parse(JSON.stringify(project));
     setCurrentProject(cloned);
-    setSelectedDeviceId(cloned.devices[0]?.id || null);
-    setSelectedLinkId(null);
+    setSelectedDeviceIds(cloned.devices[0]?.id ? [cloned.devices[0].id] : []);
+    setSelectedLinkIds([]);
     setOpenConsoleDeviceIds(cloned.devices.slice(0, 2).map((d: NetworkDevice) => d.id));
     setActiveConsoleDeviceId(cloned.devices[0]?.id || null);
     setHasUnsavedChanges(false);
@@ -413,8 +438,8 @@ export default function App() {
       ...prev,
       devices: [...prev.devices, newDevice],
     }));
-    setSelectedDeviceId(newDevice.id);
-    setSelectedLinkId(null);
+    setSelectedDeviceIds([newDevice.id]);
+    setSelectedLinkIds([]);
     setHasUnsavedChanges(true);
   };
 
@@ -646,7 +671,7 @@ export default function App() {
       devices: prev.devices.filter((d) => d.id !== deviceId),
       links: prev.links.filter((l) => l.sourceDeviceId !== deviceId && l.targetDeviceId !== deviceId),
     }));
-    if (selectedDeviceId === deviceId) setSelectedDeviceId(null);
+    setSelectedDeviceIds((prev) => prev.filter((id) => id !== deviceId));
     setOpenConsoleDeviceIds((prev) => prev.filter((id) => id !== deviceId));
     setHasUnsavedChanges(true);
   };
@@ -677,7 +702,8 @@ export default function App() {
       ...prev,
       devices: [...prev.devices, copy],
     }));
-    setSelectedDeviceId(copy.id);
+    setSelectedDeviceIds([copy.id]);
+    setSelectedLinkIds([]);
     setHasUnsavedChanges(true);
   };
 
@@ -790,7 +816,8 @@ export default function App() {
     setIsCableToolActive(false);
     setCableSourceDevice(null);
     setCablePendingTarget(null);
-    setSelectedLinkId(newLink.id);
+    setSelectedLinkIds([newLink.id]);
+    setSelectedDeviceIds([]);
     setHasUnsavedChanges(true);
   };
 
@@ -813,8 +840,106 @@ export default function App() {
         },
       })),
     }));
-    if (selectedLinkId === linkId) setSelectedLinkId(null);
+    setSelectedLinkIds((prev) => prev.filter((id) => id !== linkId));
     setHasUnsavedChanges(true);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedDeviceIds.length === 0 && selectedLinkIds.length === 0) return;
+
+    const deviceIdsSet = new Set(selectedDeviceIds);
+    const linkIdsSet = new Set(selectedLinkIds);
+
+    setCurrentProject((prev) => {
+      // 1. Filter out deleted devices
+      const remainingDevices = prev.devices.filter((d) => !deviceIdsSet.has(d.id));
+
+      // 2. Identify links to remove: directly selected links OR any link connected to a deleted device
+      const removedLinkIds = new Set<string>();
+      prev.links.forEach((l) => {
+        if (
+          linkIdsSet.has(l.id) ||
+          deviceIdsSet.has(l.sourceDeviceId) ||
+          deviceIdsSet.has(l.targetDeviceId)
+        ) {
+          removedLinkIds.add(l.id);
+        }
+      });
+
+      const remainingLinks = prev.links.filter((l) => !removedLinkIds.has(l.id));
+
+      // 3. Reset interface connection statuses on surviving devices that were connected to any removed link
+      const updatedDevices = remainingDevices.map((d) => {
+        let changed = false;
+        const newInterfaces = d.config.interfaces.map((iface) => {
+          if (iface.connectedTo) {
+            if (
+              removedLinkIds.has(iface.connectedTo.linkId) ||
+              deviceIdsSet.has(iface.connectedTo.deviceId)
+            ) {
+              changed = true;
+              return {
+                ...iface,
+                connectedTo: undefined,
+                status: 'down' as const,
+              };
+            }
+          }
+          return iface;
+        });
+
+        return changed ? { ...d, config: { ...d.config, interfaces: newInterfaces } } : d;
+      });
+
+      return {
+        ...prev,
+        devices: updatedDevices,
+        links: remainingLinks,
+      };
+    });
+
+    // Close any consoles for deleted devices
+    setOpenConsoleDeviceIds((prev) => prev.filter((id) => !deviceIdsSet.has(id)));
+
+    // Clear selections
+    setSelectedDeviceIds([]);
+    setSelectedLinkIds([]);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSelectDevice = (device: NetworkDevice | null, multi: boolean = false) => {
+    if (!device) {
+      setSelectedDeviceIds([]);
+      return;
+    }
+    if (multi) {
+      setSelectedDeviceIds((prev) =>
+        prev.includes(device.id) ? prev.filter((id) => id !== device.id) : [...prev, device.id]
+      );
+    } else {
+      setSelectedDeviceIds([device.id]);
+      setSelectedLinkIds([]);
+    }
+  };
+
+  const handleSelectLink = (link: NetworkLink | null, multi: boolean = false) => {
+    if (!link) {
+      setSelectedLinkIds([]);
+      return;
+    }
+    if (multi) {
+      setSelectedLinkIds((prev) =>
+        prev.includes(link.id) ? prev.filter((id) => id !== link.id) : [...prev, link.id]
+      );
+    } else {
+      setSelectedLinkIds([link.id]);
+      setSelectedDeviceIds([]);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDeviceIds([]);
+    setSelectedLinkIds([]);
   };
 
   const handleUpdateLink = (updated: NetworkLink) => {
@@ -897,6 +1022,11 @@ export default function App() {
         packetAnimationActive={packetAnimationActive}
         gridSnap={gridSnap}
         hasUnsavedChanges={hasUnsavedChanges}
+        selectedCount={selectedDeviceIds.length + selectedLinkIds.length}
+        selectedDeviceCount={selectedDeviceIds.length}
+        selectedLinkCount={selectedLinkIds.length}
+        onDeleteSelected={handleDeleteSelected}
+        onClearSelection={handleClearSelection}
         onNewProject={() => setIsProjectManagerOpen(true)}
         onOpenProjectModal={() => setIsProjectManagerOpen(true)}
         onSaveProject={handleSaveProject}
@@ -975,24 +1105,34 @@ export default function App() {
             annotations={currentProject.annotations}
             selectedDeviceId={selectedDeviceId}
             selectedLinkId={selectedLinkId}
+            selectedDeviceIds={selectedDeviceIds}
+            selectedLinkIds={selectedLinkIds}
             isCableToolActive={isCableToolActive}
             cableSourceDevice={cableSourceDevice}
             showInterfaceLabels={showInterfaceLabels}
             packetAnimationActive={packetAnimationActive}
             simulatedPackets={simulatedPackets}
             gridSnap={gridSnap}
-            onSelectDevice={(device) => {
-              setSelectedDeviceId(device ? device.id : null);
-              setSelectedLinkId(null);
-            }}
-            onSelectLink={(link) => {
-              setSelectedLinkId(link ? link.id : null);
-              setSelectedDeviceId(null);
-            }}
+            onSelectDevice={handleSelectDevice}
+            onSelectLink={handleSelectLink}
+            onDeleteSelected={handleDeleteSelected}
+            onClearSelection={handleClearSelection}
             onMoveDevice={handleMoveDevice}
             onDeviceContextMenu={(e, device) => {
               e.preventDefault();
+              if (!selectedDeviceIds.includes(device.id)) {
+                setSelectedDeviceIds([device.id]);
+                setSelectedLinkIds([]);
+              }
               setContextMenu({ x: e.clientX, y: e.clientY, device });
+            }}
+            onLinkContextMenu={(e, link) => {
+              e.preventDefault();
+              if (!selectedLinkIds.includes(link.id)) {
+                setSelectedLinkIds([link.id]);
+                setSelectedDeviceIds([]);
+              }
+              setContextMenu({ x: e.clientX, y: e.clientY, link });
             }}
             onDeviceDoubleClick={(device) => handleOpenConsole(device)}
             onCableEndpointSelect={handleCableEndpointSelect}
@@ -1167,6 +1307,8 @@ export default function App() {
           x={contextMenu.x}
           y={contextMenu.y}
           device={contextMenu.device}
+          link={contextMenu.link}
+          selectedCount={selectedDeviceIds.length + selectedLinkIds.length}
           onClose={() => setContextMenu(null)}
           onStart={handleStartDevice}
           onStop={handleStopDevice}
@@ -1178,6 +1320,8 @@ export default function App() {
           }}
           onDuplicate={handleDuplicateDevice}
           onDelete={handleDeleteDevice}
+          onDeleteLink={handleDeleteLink}
+          onDeleteSelected={handleDeleteSelected}
           onOpenNodeSelector={() => {
             setIsNodeSelectorOpen(true);
             setContextMenu(null);

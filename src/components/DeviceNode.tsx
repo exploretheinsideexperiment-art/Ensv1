@@ -274,6 +274,12 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
     }
   };
 
+  // Check if any interface has an IP address assigned to display near node
+  const primaryIp = device.config?.interfaces?.find((i) => i.ipAddress)?.ipAddress;
+  const nameWidth = Math.max(74, device.name.length * 8.5 + 24);
+  const halfWidth = nameWidth / 2;
+  const badgeHeight = primaryIp ? 32 : 22;
+
   return (
     <g
       transform={`translate(${device.x}, ${device.y})`}
@@ -286,10 +292,10 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
       {/* Selection Glow / Cable Tool Target Glow */}
       {isSelected && (
         <rect
-          x="-6"
-          y="-6"
-          width="92"
-          height="88"
+          x={-Math.max(10, halfWidth - 36)}
+          y="-8"
+          width={Math.max(100, nameWidth + 16)}
+          height={primaryIp ? 128 : 118}
           rx="14"
           fill="none"
           stroke="#38bdf8"
@@ -356,30 +362,57 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
         </g>
       )}
 
-      {/* Device Name Label */}
-      <g transform="translate(40, 72)">
+      {/* Device Name Label - Prominent, high-contrast, always visible right near the node */}
+      <g transform="translate(40, 82)">
+        {/* Nameplate pill shadow & border */}
         <rect
-          x={-Math.max(30, device.name.length * 4.5)}
-          y="-2"
-          width={Math.max(60, device.name.length * 9)}
-          height="18"
-          rx="4"
-          fill="#0f172a"
-          fillOpacity="0.85"
-          stroke="#334155"
+          x={-halfWidth}
+          y="0"
+          width={nameWidth}
+          height={badgeHeight}
+          rx="6"
+          fill="#060c18"
+          fillOpacity="0.96"
+          stroke={isSelected ? '#38bdf8' : '#334155'}
+          strokeWidth={isSelected ? '1.8' : '1.2'}
+          className="filter drop-shadow-md"
+        />
+        {/* Status LED inside nameplate */}
+        <circle
+          cx={-halfWidth + 9}
+          cy={primaryIp ? 11 : 11}
+          r="3"
+          fill={getPowerColor()}
+          stroke="#020617"
           strokeWidth="1"
         />
+        {/* Device Name Text */}
         <text
-          x="0"
-          y="11"
+          x={primaryIp ? 3 : 2}
+          y={primaryIp ? 14 : 15}
           textAnchor="middle"
-          fill="#f8fafc"
+          fill={isSelected ? '#38bdf8' : '#f8fafc'}
           fontSize="11"
           fontWeight="bold"
           fontFamily="system-ui, -apple-system, sans-serif"
+          letterSpacing="0.3px"
         >
           {device.name}
         </text>
+        {/* Primary IP subtitle if configured */}
+        {primaryIp && (
+          <text
+            x="0"
+            y="26"
+            textAnchor="middle"
+            fill="#38bdf8"
+            fontSize="8.5"
+            fontWeight="600"
+            fontFamily="monospace"
+          >
+            {primaryIp}
+          </text>
+        )}
       </g>
 
       {/* Interface Port Indicators (Green when running, Orange when on hold, Red when stopped) */}
@@ -400,6 +433,11 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
             ledFill = '#f59e0b'; // Amber / Orange (Hold)
           }
         }
+
+        // Avoid collision between downward interface labels and the nameplate
+        const isFacingDown = Math.sin(angle) > 0.55;
+        const labelOffsetX = isFacingDown ? (Math.cos(angle) >= 0 ? 14 : -14) : Math.cos(angle) * 12;
+        const labelOffsetY = isFacingDown ? -7 : Math.sin(angle) * 12;
 
         return (
           <g
@@ -424,7 +462,7 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
 
             {/* Interface label tooltip/badge if enabled */}
             {showInterfaceLabels && (
-              <g transform={`translate(${Math.cos(angle) * 12}, ${Math.sin(angle) * 12})`}>
+              <g transform={`translate(${labelOffsetX}, ${labelOffsetY})`}>
                 <rect
                   x="-14"
                   y="-8"
@@ -432,7 +470,7 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
                   height="13"
                   rx="3"
                   fill="#020617"
-                  fillOpacity="0.8"
+                  fillOpacity="0.85"
                   stroke="#475569"
                   strokeWidth="0.8"
                 />

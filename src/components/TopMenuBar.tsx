@@ -21,6 +21,8 @@ import {
   Check,
   ChevronDown,
   Boxes,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { ENSProject } from '../types/network';
 
@@ -33,6 +35,11 @@ interface TopMenuBarProps {
   packetAnimationActive: boolean;
   gridSnap: boolean;
   hasUnsavedChanges: boolean;
+  selectedCount?: number;
+  selectedDeviceCount?: number;
+  selectedLinkCount?: number;
+  onDeleteSelected?: () => void;
+  onClearSelection?: () => void;
   onNewProject: () => void;
   onOpenProjectModal: () => void;
   onSaveProject: () => void;
@@ -82,6 +89,11 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   onOpenPWAInstall,
   onOpenHelp,
   onSelectPresetLab,
+  selectedCount = 0,
+  selectedDeviceCount = 0,
+  selectedLinkCount = 0,
+  onDeleteSelected,
+  onClearSelection,
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState(false);
@@ -219,6 +231,51 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
                   >
                     <span>Import Project (.ensv1)</span>
                     <Upload className="h-3.5 w-3.5 text-slate-400" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Edit Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setActiveMenu(activeMenu === 'edit' ? null : 'edit')}
+                className={`px-2.5 py-1 rounded hover:bg-slate-800 hover:text-white transition ${
+                  activeMenu === 'edit' ? 'bg-slate-800 text-white' : ''
+                }`}
+              >
+                Edit
+              </button>
+              {activeMenu === 'edit' && (
+                <div
+                  onMouseLeave={closeMenu}
+                  className="absolute left-0 top-full mt-1 w-52 rounded-xl border border-slate-700 bg-slate-900 py-1.5 shadow-2xl z-50 text-xs animate-in fade-in-50"
+                >
+                  <button
+                    onClick={() => {
+                      onDeleteSelected?.();
+                      closeMenu();
+                    }}
+                    disabled={selectedCount === 0}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 ${
+                      selectedCount > 0
+                        ? 'hover:bg-rose-600/20 text-rose-400 font-semibold'
+                        : 'text-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>Delete Selected ({selectedCount})</span>
+                    <span className="font-mono text-[10px] text-slate-500">Del</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClearSelection?.();
+                      closeMenu();
+                    }}
+                    disabled={selectedCount === 0}
+                    className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-slate-800 text-slate-300"
+                  >
+                    <span>Clear Selection</span>
+                    <span className="font-mono text-[10px] text-slate-500">Esc</span>
                   </button>
                 </div>
               )}
@@ -618,6 +675,62 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
             <HardDrive className="h-3.5 w-3.5 text-amber-400" />
             <span className="hidden md:inline">Images</span>
           </button>
+
+          <div className="h-4 w-px bg-slate-800 mx-1" />
+
+          {/* Canvas Selection Count & Delete Button (Toolbar) */}
+          <div className="flex items-center gap-1.5" id="toolbar-selection-delete-group">
+            {selectedCount > 0 ? (
+              <div className="flex items-center gap-1.5 animate-in fade-in">
+                {/* Count Badge */}
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-500/40 text-sky-300 font-semibold text-xs shadow-sm"
+                  title={`${selectedCount} selected item(s)`}
+                >
+                  <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span className="font-bold">{selectedCount} Selected</span>
+                  {selectedDeviceCount > 0 && selectedLinkCount > 0 ? (
+                    <span className="hidden xl:inline text-[10px] text-sky-300/80 font-normal">
+                      ({selectedDeviceCount}N, {selectedLinkCount}C)
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Delete Button (Vibrant red) */}
+                <button
+                  onClick={onDeleteSelected}
+                  title="Delete selected nodes & cables (Delete / Backspace key)"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-950/60 transition active:scale-95 cursor-pointer"
+                  id="toolbar-delete-selected-btn"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete ({selectedCount})</span>
+                </button>
+
+                {/* Deselect button */}
+                {onClearSelection && (
+                  <button
+                    onClick={onClearSelection}
+                    title="Clear Selection (Escape)"
+                    className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                disabled
+                title="Select a node or cable on canvas to delete (0 selected)"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 text-xs cursor-not-allowed opacity-60"
+                id="toolbar-delete-btn-disabled"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-slate-600" />
+                <span className="hidden sm:inline">Delete</span>
+                <span className="text-[10px] font-mono text-slate-600">(0)</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tagline branding on right */}

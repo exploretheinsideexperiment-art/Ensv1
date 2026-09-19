@@ -58,6 +58,12 @@ export class NetworkCLI {
       return { output: [], newPrompt: this.getPrompt(device, session) };
     }
 
+    // Intercept question mark help command (e.g. "show ?", "show ip ?", "ip ?", "?", etc.)
+    if (cmd === '?' || cmd.endsWith('?') || cmd.includes('?')) {
+      const helpLines = this.getContextHelp(cmd, device, session);
+      return { output: helpLines, newPrompt: this.getPrompt(device, session) };
+    }
+
     if (device.config.osType === 'generic_linux' || device.config.osType === 'windows') {
       return this.executeLinux(cmd, device, session, allDevices);
     } else if (device.config.osType === 'palo_alto') {
@@ -67,6 +73,383 @@ export class NetworkCLI {
     } else {
       return this.executeCisco(cmd, device, session, allDevices);
     }
+  }
+
+  // Interactive Command Help Engine (Cisco IOS, Palo Alto, FortiGate, Linux)
+  public static getContextHelp(
+    commandRaw: string,
+    device: NetworkDevice,
+    session: CliSessionState
+  ): string[] {
+    const trimmed = commandRaw.trim();
+    // Strip trailing or internal '?' to determine command context
+    const cleanCmd = trimmed.replace(/\?+/g, '').trim().toLowerCase();
+    const osType = device.config.osType;
+
+    const formatHelp = (items: { cmd: string; desc: string }[]): string[] => {
+      return items.map((item) => `  ${item.cmd.padEnd(19, ' ')}${item.desc}`);
+    };
+
+    // 1. PALO ALTO PAN-OS HELP
+    if (osType === 'palo_alto') {
+      if (!cleanCmd) {
+        return formatHelp([
+          { cmd: 'clear', desc: 'Clear system status or counters' },
+          { cmd: 'configure', desc: 'Enter configuration mode' },
+          { cmd: 'exit', desc: 'Exit current session' },
+          { cmd: 'ping', desc: 'Send ICMP Echo request to host' },
+          { cmd: 'request', desc: 'Execute system maintenance requests' },
+          { cmd: 'set', desc: 'Set CLI or session parameters' },
+          { cmd: 'show', desc: 'Show system, interface, and policy state' },
+          { cmd: 'test', desc: 'Run diagnostics test' },
+          { cmd: 'traceroute', desc: 'Trace route to network host' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show running') || cleanCmd === 'show run') {
+        return formatHelp([
+          { cmd: 'security-policy', desc: 'Show active Security Policy rules (Firewall Rules)' },
+          { cmd: 'nat-policy', desc: 'Show active NAT translation rules' },
+          { cmd: 'interface', desc: 'Show running interface configuration' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show routing') || cleanCmd === 'show route') {
+        return formatHelp([
+          { cmd: 'route', desc: 'Show IP forwarding routing table' },
+          { cmd: 'protocol', desc: 'Show dynamic routing protocol status (OSPF/BGP)' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show system') || cleanCmd === 'show sys') {
+        return formatHelp([
+          { cmd: 'info', desc: 'Show system state, uptime, and PAN-OS version' },
+          { cmd: 'resources', desc: 'Show memory and management plane CPU utilization' },
+          { cmd: 'state', desc: 'Show HA cluster synchronization status' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show')) {
+        return formatHelp([
+          { cmd: 'arp', desc: 'Show ARP table entries' },
+          { cmd: 'config', desc: 'Show candidate system configuration' },
+          { cmd: 'interface', desc: 'Show hardware interfaces status and statistics' },
+          { cmd: 'routing', desc: 'Show IP routing table and protocols' },
+          { cmd: 'running', desc: 'Show active running configuration and security rules' },
+          { cmd: 'session', desc: 'Show active firewall sessions' },
+          { cmd: 'system', desc: 'Show system state, uptime, and PAN-OS version' },
+          { cmd: 'vpn', desc: 'Show IPsec VPN and IKE gateway associations' },
+        ]);
+      }
+      return [`% Unknown PAN-OS command: "${commandRaw}"`];
+    }
+
+    // 2. FORTIGATE FORTIOS HELP
+    if (osType === 'fortigate') {
+      if (!cleanCmd) {
+        return formatHelp([
+          { cmd: 'config', desc: 'Enter configuration level' },
+          { cmd: 'diagnose', desc: 'Diagnostic utilities and packet sniffing' },
+          { cmd: 'execute', desc: 'Execute system operational commands' },
+          { cmd: 'get', desc: 'Retrieve operational values and status' },
+          { cmd: 'show', desc: 'Display configuration statements' },
+        ]);
+      }
+      if (cleanCmd.startsWith('get system') || cleanCmd.startsWith('show system')) {
+        return formatHelp([
+          { cmd: 'status', desc: 'Show FortiOS firmware version, serial, and uptime' },
+          { cmd: 'interface', desc: 'Show network interface configurations and IPs' },
+          { cmd: 'performance', desc: 'Show CPU, RAM, and disk utilization' },
+          { cmd: 'arp', desc: 'Show system ARP cache' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show firewall') || cleanCmd.startsWith('get firewall')) {
+        return formatHelp([
+          { cmd: 'policy', desc: 'Show firewall IPv4/IPv6 security policy rules' },
+          { cmd: 'address', desc: 'Show firewall address and subnet objects' },
+          { cmd: 'service', desc: 'Show custom firewall service ports' },
+        ]);
+      }
+      if (cleanCmd.startsWith('get router') || cleanCmd.startsWith('show router')) {
+        return formatHelp([
+          { cmd: 'info routing-table', desc: 'Show active IP routing table' },
+          { cmd: 'ospf', desc: 'Show OSPF protocol status and neighbors' },
+          { cmd: 'bgp', desc: 'Show BGP summary and peer states' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show') || cleanCmd.startsWith('get')) {
+        return formatHelp([
+          { cmd: 'firewall', desc: 'Firewall security policy objects and rules' },
+          { cmd: 'router', desc: 'Routing table and dynamic routing processes' },
+          { cmd: 'system', desc: 'System interfaces, status, and administration' },
+          { cmd: 'vpn', desc: 'IPsec tunnels and SSL-VPN gateway states' },
+        ]);
+      }
+      return [`% Unknown FortiOS command: "${commandRaw}"`];
+    }
+
+    // 3. LINUX & WINDOWS HOST HELP
+    if (osType === 'generic_linux' || osType === 'windows') {
+      if (cleanCmd.startsWith('ip')) {
+        return formatHelp([
+          { cmd: 'addr', desc: 'Protocol address management (ip a / ip addr show)' },
+          { cmd: 'link', desc: 'Network device configuration (ip link set up/down)' },
+          { cmd: 'neigh', desc: 'Neighbour / ARP table management (ip neigh show)' },
+          { cmd: 'route', desc: 'Routing table management (ip route show / add)' },
+        ]);
+      }
+      if (cleanCmd.startsWith('show')) {
+        return [
+          `Note: On Linux, use 'ip addr show' or 'ip route show'.`,
+          `Available inspection commands:`,
+          ...formatHelp([
+            { cmd: 'ip a', desc: 'Show IP addresses on all network interfaces' },
+            { cmd: 'ip route', desc: 'Show IP routing table' },
+            { cmd: 'ifconfig', desc: 'Display network interface parameters' },
+            { cmd: 'netstat -rn', desc: 'Show kernel routing table' },
+            { cmd: 'arp -a', desc: 'Display neighbor ARP table' },
+          ]),
+        ];
+      }
+      return formatHelp([
+        { cmd: 'cat', desc: 'Concatenate and display files' },
+        { cmd: 'clear', desc: 'Clear the terminal screen' },
+        { cmd: 'curl', desc: 'Transfer data with URLs (HTTP/HTTPS)' },
+        { cmd: 'ifconfig', desc: 'Configure or view network interfaces' },
+        { cmd: 'ip', desc: 'Show/manipulate routing, network devices, and interfaces' },
+        { cmd: 'netstat', desc: 'Print network connections and routing tables' },
+        { cmd: 'ping', desc: 'Send ICMP ECHO_REQUEST to network hosts' },
+        { cmd: 'route', desc: 'Show or manipulate IP routing table' },
+        { cmd: 'traceroute', desc: 'Print route packets trace to network host' },
+      ]);
+    }
+
+    // 4. CISCO IOS CLI HELP (ROUTERS, SWITCHES, FIREWALLS)
+    // 4.1. Top level help (User typed just "?")
+    if (!cleanCmd) {
+      if (session.mode === 'user') {
+        return [
+          'Exec commands:',
+          ...formatHelp([
+            { cmd: 'enable', desc: 'Turn on privileged commands' },
+            { cmd: 'exit', desc: 'Exit from the EXEC' },
+            { cmd: 'help', desc: 'Description of the interactive help system' },
+            { cmd: 'ping', desc: 'Send echo messages' },
+            { cmd: 'show', desc: 'Show running system information' },
+            { cmd: 'terminal', desc: 'Set terminal line parameters' },
+            { cmd: 'traceroute', desc: 'Trace route to destination' },
+          ]),
+        ];
+      }
+      if (session.mode === 'privileged') {
+        return [
+          'Exec commands:',
+          ...formatHelp([
+            { cmd: 'clear', desc: 'Reset functions' },
+            { cmd: 'configure', desc: 'Enter configuration mode' },
+            { cmd: 'copy', desc: 'Copy from one file to another' },
+            { cmd: 'disable', desc: 'Turn off privileged commands' },
+            { cmd: 'disconnect', desc: 'Disconnect an existing network connection' },
+            { cmd: 'enable', desc: 'Turn on privileged commands' },
+            { cmd: 'exit', desc: 'Exit from the EXEC' },
+            { cmd: 'no', desc: 'Negate a command or set its defaults' },
+            { cmd: 'ping', desc: 'Send echo messages' },
+            { cmd: 'reload', desc: 'Halt and perform a cold restart' },
+            { cmd: 'show', desc: 'Show running system information' },
+            { cmd: 'traceroute', desc: 'Trace route to destination' },
+            { cmd: 'write', desc: 'Write running configuration to memory' },
+          ]),
+        ];
+      }
+      if (session.mode === 'config') {
+        return [
+          'Configure commands:',
+          ...formatHelp([
+            { cmd: 'boot', desc: 'Set boot system options' },
+            { cmd: 'default', desc: 'Set a command to its defaults' },
+            { cmd: 'do', desc: 'To run an EXEC command in config mode' },
+            { cmd: 'end', desc: 'Exit to privileged EXEC mode' },
+            { cmd: 'exit', desc: 'Exit from configure mode' },
+            { cmd: 'hostname', desc: 'Set system network name' },
+            { cmd: 'interface', desc: 'Select an interface to configure' },
+            { cmd: 'ip', desc: 'Global IP configuration subcommands' },
+            { cmd: 'no', desc: 'Negate a command or set its defaults' },
+            { cmd: 'router', desc: 'Enable a routing process' },
+            { cmd: 'vlan', desc: 'VLAN configuration commands' },
+          ]),
+        ];
+      }
+      if (session.mode === 'config-if') {
+        return [
+          'Interface configuration commands:',
+          ...formatHelp([
+            { cmd: 'description', desc: 'Interface specific description' },
+            { cmd: 'do', desc: 'To run an EXEC command' },
+            { cmd: 'duplex', desc: 'Configure duplex operation' },
+            { cmd: 'exit', desc: 'Exit from interface configuration mode' },
+            { cmd: 'ip', desc: 'Interface Internet Protocol config commands' },
+            { cmd: 'no', desc: 'Negate a command or set its defaults' },
+            { cmd: 'shutdown', desc: 'Shutdown the selected interface' },
+            { cmd: 'speed', desc: 'Configure speed operation' },
+            { cmd: 'switchport', desc: 'Set switching characteristics of the interface' },
+          ]),
+        ];
+      }
+      if (session.mode === 'config-router') {
+        return [
+          'Router configuration commands:',
+          ...formatHelp([
+            { cmd: 'exit', desc: 'Exit from routing configuration mode' },
+            { cmd: 'network', desc: 'Enable routing on an IP network' },
+            { cmd: 'passive-interface', desc: 'Suppress routing updates on an interface' },
+            { cmd: 'redistribute', desc: 'Redistribute information from another routing protocol' },
+          ]),
+        ];
+      }
+    }
+
+    // 4.2. "show ip ?"
+    if (cleanCmd === 'show ip' || cleanCmd === 'sh ip') {
+      return formatHelp([
+        { cmd: 'arp', desc: 'IP ARP table' },
+        { cmd: 'bgp', desc: 'BGP routing information' },
+        { cmd: 'interface', desc: 'IP interface status and configuration' },
+        { cmd: 'ospf', desc: 'OSPF routing process information' },
+        { cmd: 'protocols', desc: 'Active IP routing protocol processes' },
+        { cmd: 'route', desc: 'IP routing table' },
+      ]);
+    }
+
+    // 4.3. "show ip interface ?" / "show ip int ?"
+    if (
+      cleanCmd === 'show ip interface' ||
+      cleanCmd === 'show ip int' ||
+      cleanCmd === 'sh ip int' ||
+      cleanCmd === 'sh ip interface'
+    ) {
+      return formatHelp([
+        { cmd: '<cr>', desc: '' },
+        { cmd: 'brief', desc: 'Brief summary of IP status and configuration' },
+        { cmd: 'GigabitEthernet', desc: 'GigabitEthernet IEEE 802.3z' },
+        { cmd: 'FastEthernet', desc: 'FastEthernet IEEE 802.3' },
+      ]);
+    }
+
+    // 4.4. "show interface ?" / "show int ?"
+    if (cleanCmd === 'show interface' || cleanCmd === 'show int' || cleanCmd === 'sh int') {
+      return formatHelp([
+        { cmd: '<cr>', desc: '' },
+        { cmd: 'description', desc: 'Show interface description' },
+        { cmd: 'status', desc: 'Show interface line status' },
+        { cmd: 'summary', desc: 'Show summary of all interfaces' },
+        { cmd: 'GigabitEthernet', desc: 'GigabitEthernet IEEE 802.3z' },
+        { cmd: 'FastEthernet', desc: 'FastEthernet IEEE 802.3' },
+      ]);
+    }
+
+    // 4.5. "show running-config ?" / "show run ?"
+    if (cleanCmd === 'show running-config' || cleanCmd === 'show run' || cleanCmd === 'sh run') {
+      return formatHelp([
+        { cmd: '<cr>', desc: '' },
+        { cmd: 'interface', desc: 'Show interface configuration' },
+        { cmd: 'partition', desc: 'Show configuration partition' },
+      ]);
+    }
+
+    // 4.6. "show mac ?" / "show mac-address-table ?"
+    if (
+      cleanCmd === 'show mac' ||
+      cleanCmd === 'show mac-address-table' ||
+      cleanCmd === 'sh mac' ||
+      cleanCmd === 'sh mac-address-table'
+    ) {
+      return formatHelp([
+        { cmd: '<cr>', desc: '' },
+        { cmd: 'dynamic', desc: 'Dynamic entries only' },
+        { cmd: 'vlan', desc: 'Filter by VLAN ID' },
+      ]);
+    }
+
+    // 4.7. "show vlan ?" / "sh vlan ?"
+    if (cleanCmd === 'show vlan' || cleanCmd === 'sh vlan') {
+      return formatHelp([
+        { cmd: '<cr>', desc: '' },
+        { cmd: 'brief', desc: 'VTP all VLAN status in brief format' },
+        { cmd: 'id', desc: 'Filter by VLAN ID' },
+      ]);
+    }
+
+    // 4.8. Top-level "show ?" / "sh ?"
+    if (cleanCmd === 'show' || cleanCmd === 'sh') {
+      return formatHelp([
+        { cmd: 'arp', desc: 'ARP table' },
+        { cmd: 'bgp', desc: 'BGP routing information' },
+        { cmd: 'clock', desc: 'Display current system clock' },
+        { cmd: 'environment', desc: 'Environmental monitor (power, temp, fan)' },
+        { cmd: 'history', desc: 'Display the session command history' },
+        { cmd: 'interfaces', desc: 'Interface status and configuration' },
+        { cmd: 'ip', desc: 'IP information and protocols' },
+        { cmd: 'mac-address-table', desc: 'MAC forwarding table (Switches)' },
+        { cmd: 'ospf', desc: 'OSPF routing information' },
+        { cmd: 'running-config', desc: 'Current operating configuration' },
+        { cmd: 'startup-config', desc: 'Configuration saved in NVRAM' },
+        { cmd: 'users', desc: 'Display connected users' },
+        { cmd: 'version', desc: 'System hardware and software status' },
+        { cmd: 'vlan', desc: 'VTP and VLAN information' },
+      ]);
+    }
+
+    // 4.9. "ip ?"
+    if (cleanCmd === 'ip') {
+      return formatHelp([
+        { cmd: 'address', desc: 'Set the IP address of an interface' },
+        { cmd: 'domain-lookup', desc: 'Enable IP Domain Name System (DNS) queries' },
+        { cmd: 'route', desc: 'Establish static routes' },
+        { cmd: 'routing', desc: 'Enable IP routing' },
+      ]);
+    }
+
+    // 4.10. "ip route ?"
+    if (cleanCmd === 'ip route') {
+      return formatHelp([
+        { cmd: 'A.B.C.D', desc: 'Destination IP network prefix (e.g. 192.168.1.0)' },
+      ]);
+    }
+
+    // 4.11. "interface ?" / "int ?"
+    if (cleanCmd === 'interface' || cleanCmd === 'int') {
+      const ifList = device.config.interfaces.map((i) => ({ cmd: i.name, desc: `${i.name} interface` }));
+      return formatHelp([
+        ...ifList,
+        { cmd: 'range', desc: 'Interface range configuration' },
+      ]);
+    }
+
+    // 4.12. "router ?"
+    if (cleanCmd === 'router') {
+      return formatHelp([
+        { cmd: 'bgp', desc: 'Border Gateway Protocol (BGP)' },
+        { cmd: 'ospf', desc: 'Open Shortest Path First (OSPF)' },
+        { cmd: 'rip', desc: 'Routing Information Protocol (RIP)' },
+      ]);
+    }
+
+    // 4.13. "no ?"
+    if (cleanCmd === 'no') {
+      return formatHelp([
+        { cmd: 'ip', desc: 'Global IP configuration subcommands' },
+        { cmd: 'router', desc: 'Remove a routing process' },
+        { cmd: 'shutdown', desc: 'Restart an interface / turn UP' },
+        { cmd: 'vlan', desc: 'Remove a VLAN' },
+      ]);
+    }
+
+    // Fallback contextual match
+    return [
+      `% Help options for "${commandRaw}":`,
+      ...formatHelp([
+        { cmd: 'show ip int brief', desc: 'Show interface summary' },
+        { cmd: 'show ip route', desc: 'Show IP routing table' },
+        { cmd: 'show running-config', desc: 'Show active configuration' },
+        { cmd: 'show version', desc: 'Show system hardware and version' },
+      ]),
+    ];
   }
 
   // Palo Alto PAN-OS CLI Processor
@@ -810,18 +1193,33 @@ export class NetworkCLI {
     sourceDevice: NetworkDevice,
     allDevices: NetworkDevice[]
   ): { targetDevice?: NetworkDevice; reachable: boolean } {
-    const targetDevice = allDevices.find((d) =>
+    let targetDevice = allDevices.find((d) =>
       d.config.interfaces.some((i) => i.ipAddress === targetIp)
     );
+
+    // Support Network & Cloud node gateways or Internet DNS (8.8.8.8, 1.1.1.1)
+    if (!targetDevice) {
+      const cloudOrNet = allDevices.find(
+        (d) =>
+          (d.type === 'cloud' || d.type === 'network') &&
+          d.status === 'running' &&
+          (d.config.networkConfig?.gatewayIp === targetIp ||
+            ((targetIp === '8.8.8.8' || targetIp === '1.1.1.1') &&
+              d.config.networkConfig?.internetAccess !== false))
+      );
+      if (cloudOrNet) {
+        targetDevice = cloudOrNet;
+      }
+    }
 
     if (!targetDevice) return { reachable: false };
     if (targetDevice.status !== 'running' || sourceDevice.status !== 'running') {
       return { targetDevice, reachable: false };
     }
 
-    // Target interface must be UP (not shutdown)
+    // Target interface must be UP (not shutdown) if standard interface exists
     const targetIface = targetDevice.config.interfaces.find((i) => i.ipAddress === targetIp);
-    if (!targetIface || targetIface.status !== 'up') {
+    if (targetIface && targetIface.status !== 'up') {
       return { targetDevice, reachable: false };
     }
 

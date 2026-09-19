@@ -17,11 +17,15 @@ import {
   Link,
   ChevronRight,
   Info,
+  Cloud,
+  Globe,
+  Radio,
 } from 'lucide-react';
 import {
   NetworkDevice,
   NetworkLink,
   NetworkInterface,
+  NetworkObjectConfig,
   ENSProject,
 } from '../types/network';
 
@@ -58,7 +62,14 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
   onUpdateLink,
   onDeleteLink,
 }) => {
-  const [activeTab, setActiveTab] = useState<'interfaces' | 'hardware' | 'routing'>('interfaces');
+  const [activeTab, setActiveTab] = useState<'interfaces' | 'hardware' | 'routing' | 'network'>('interfaces');
+
+  // Auto-switch to 'network' tab if a Network or Cloud device is selected
+  React.useEffect(() => {
+    if (selectedDevice && (selectedDevice.type === 'network' || selectedDevice.type === 'cloud')) {
+      setActiveTab('network');
+    }
+  }, [selectedDevice?.id, selectedDevice?.type]);
 
   if (isCollapsed) {
     return (
@@ -340,6 +351,17 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
 
       {/* Navigation Sub-Tabs */}
       <div className="flex border-b border-slate-800 bg-slate-900/50 p-1 gap-1 text-xs">
+        {(selectedDevice.type === 'network' || selectedDevice.type === 'cloud') && (
+          <button
+            onClick={() => setActiveTab('network')}
+            className={`flex-1 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 ${
+              activeTab === 'network' ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40 font-bold' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Cloud className="h-3.5 w-3.5" />
+            <span>Network Options</span>
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('interfaces')}
           className={`flex-1 py-1.5 rounded font-medium transition ${
@@ -368,6 +390,325 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
 
       {/* Tab Panels */}
       <div className="p-3 overflow-y-auto flex-1 text-xs space-y-3">
+        {/* NETWORK & CLOUD CONFIGURATION TAB */}
+        {activeTab === 'network' && (() => {
+          const netConfig: NetworkObjectConfig = selectedDevice.config?.networkConfig || {
+            networkType: selectedDevice.name.toLowerCase().includes('bridge')
+              ? 'bridge'
+              : selectedDevice.name.toLowerCase().includes('mgmt')
+              ? 'management'
+              : 'cloud',
+            cloudSubtype: 'nat',
+            bridgeName: 'br0',
+            adapterName: selectedDevice.name.toLowerCase().includes('mgmt') ? 'pnet0 (Management)' : 'pnet1 (NAT Cloud)',
+            gatewayIp: '192.168.1.1',
+            subnetMask: '255.255.255.0',
+            dhcpEnabled: true,
+            dhcpRange: '192.168.1.100 - 192.168.1.200',
+            internetAccess: true,
+            bandwidthMbps: 1000,
+          };
+
+          const updateNetConfig = (patch: Partial<NetworkObjectConfig>) => {
+            onUpdateDevice({
+              ...selectedDevice,
+              config: {
+                ...selectedDevice.config,
+                networkConfig: {
+                  ...netConfig,
+                  ...patch,
+                },
+              },
+            });
+          };
+
+          return (
+            <div className="space-y-3.5">
+              {/* Network Object Type Selector */}
+              <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 space-y-2">
+                <label className="block text-slate-300 font-bold text-xs uppercase tracking-wider">
+                  Network Node Type
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => updateNetConfig({ networkType: 'bridge' })}
+                    className={`py-2 px-1 rounded-lg text-center font-medium transition border text-[11px] ${
+                      netConfig.networkType === 'bridge'
+                        ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Bridge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateNetConfig({ networkType: 'management' })}
+                    className={`py-2 px-1 rounded-lg text-center font-medium transition border text-[11px] ${
+                      netConfig.networkType === 'management'
+                        ? 'bg-amber-600/30 text-amber-300 border-amber-500/50 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Management (Cloud)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateNetConfig({ networkType: 'cloud' })}
+                    className={`py-2 px-1 rounded-lg text-center font-medium transition border text-[11px] ${
+                      netConfig.networkType === 'cloud'
+                        ? 'bg-sky-600/30 text-sky-300 border-sky-500/50 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Cloud (WAN)
+                  </button>
+                </div>
+              </div>
+
+              {/* SPECIFIC CONFIG: BRIDGE */}
+              {netConfig.networkType === 'bridge' && (
+                <div className="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-3 space-y-3">
+                  <div className="flex items-center gap-2 text-indigo-300 font-bold">
+                    <Network className="h-4 w-4" />
+                    <span>Layer-2 Software Bridge</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Transparent Layer-2 software bridge forwarding Ethernet frames without routing. Connects multiple device segments into a single broadcast domain.
+                  </p>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Bridge Name</label>
+                    <input
+                      type="text"
+                      value={netConfig.bridgeName || 'br0'}
+                      onChange={(e) => updateNetConfig({ bridgeName: e.target.value })}
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-slate-200 font-mono text-xs"
+                      placeholder="br0"
+                    />
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-slate-300 block">Spanning Tree Protocol (STP)</span>
+                      <span className="text-[10px] text-slate-500">Prevents Layer-2 loops between connected switches</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold">
+                      ACTIVE
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* SPECIFIC CONFIG: MANAGEMENT CLOUD */}
+              {netConfig.networkType === 'management' && (
+                <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 p-3 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Radio className="h-4 w-4" />
+                    <span>Management Network (Cloud0 / pnet0)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Direct Out-of-Band (OOB) management connection. Connects firewall management ports (Palo Alto MGT, FortiGate mgmt1) and router console/SSH directly to your host browser.
+                  </p>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Host Management Interface</label>
+                    <select
+                      value={netConfig.adapterName || 'pnet0 (Management)'}
+                      onChange={(e) => updateNetConfig({ adapterName: e.target.value })}
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-slate-200 font-mono text-xs"
+                    >
+                      <option value="pnet0 (Management)">pnet0 (Primary Host Management Cloud)</option>
+                      <option value="pnet9 (Out-of-band)">pnet9 (Isolated Out-of-band Management)</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1">Gateway IP</label>
+                      <input
+                        type="text"
+                        value={netConfig.gatewayIp || '192.168.1.1'}
+                        onChange={(e) => updateNetConfig({ gatewayIp: e.target.value })}
+                        className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">Subnet Mask</label>
+                      <input
+                        type="text"
+                        value={netConfig.subnetMask || '255.255.255.0'}
+                        onChange={(e) => updateNetConfig({ subnetMask: e.target.value })}
+                        className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] text-amber-200/90 flex items-center gap-2">
+                    <span>✨ Supported Management Protocols: HTTPS (Web GUI 443), SSH (22), Telnet (23)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* SPECIFIC CONFIG: CLOUD (NAT / BRIDGED / HOST-ONLY) */}
+              {netConfig.networkType === 'cloud' && (
+                <div className="rounded-xl border border-sky-900/40 bg-sky-950/20 p-3 space-y-3">
+                  <div className="flex items-center gap-2 text-sky-300 font-bold">
+                    <Cloud className="h-4 w-4" />
+                    <span>Cloud & External Connectivity Options</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Connect lab devices to external networks, Internet WAN, or isolated host networks.
+                  </p>
+
+                  {/* Cloud Subtype Options */}
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-semibold">Cloud Subtype</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => updateNetConfig({ cloudSubtype: 'nat', adapterName: 'pnet1 (NAT)' })}
+                        className={`p-2 rounded-lg text-left transition border ${
+                          netConfig.cloudSubtype === 'nat'
+                            ? 'bg-sky-600/30 text-sky-300 border-sky-500/60 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold">NAT Mode (Cloud1 / pnet1)</span>
+                        <span className="text-[10px] text-slate-500 block">Outbound Internet access with NAT translation</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => updateNetConfig({ cloudSubtype: 'bridged', adapterName: 'eth0 (Physical NIC)' })}
+                        className={`p-2 rounded-lg text-left transition border ${
+                          netConfig.cloudSubtype === 'bridged'
+                            ? 'bg-sky-600/30 text-sky-300 border-sky-500/60 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold">Bridged (Physical NIC)</span>
+                        <span className="text-[10px] text-slate-500 block">Direct Layer-2 bridge to physical network</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => updateNetConfig({ cloudSubtype: 'host_only', adapterName: 'pnet2 (Host-Only)' })}
+                        className={`p-2 rounded-lg text-left transition border ${
+                          netConfig.cloudSubtype === 'host_only'
+                            ? 'bg-sky-600/30 text-sky-300 border-sky-500/60 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold">Host-Only (Cloud2 / pnet2)</span>
+                        <span className="text-[10px] text-slate-500 block">Isolated communication with Host only</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => updateNetConfig({ cloudSubtype: 'custom_adapter', adapterName: 'tap0 (Custom TAP)' })}
+                        className={`p-2 rounded-lg text-left transition border ${
+                          netConfig.cloudSubtype === 'custom_adapter'
+                            ? 'bg-sky-600/30 text-sky-300 border-sky-500/60 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold">Custom Virtual TAP</span>
+                        <span className="text-[10px] text-slate-500 block">Custom host interface / veth pair</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cloud Gateway & IP Settings */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1">Gateway IP Address</label>
+                      <input
+                        type="text"
+                        value={netConfig.gatewayIp || '10.0.0.1'}
+                        onChange={(e) => updateNetConfig({ gatewayIp: e.target.value })}
+                        className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-slate-200 font-mono text-xs"
+                        placeholder="10.0.0.1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">Subnet Mask</label>
+                      <input
+                        type="text"
+                        value={netConfig.subnetMask || '255.255.255.0'}
+                        onChange={(e) => updateNetConfig({ subnetMask: e.target.value })}
+                        className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1.5 text-slate-200 font-mono text-xs"
+                        placeholder="255.255.255.0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Internet NAT Toggle */}
+                  <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-slate-300 block">Outbound Internet NAT</span>
+                      <span className="text-[10px] text-slate-500">Allow nodes to ping 8.8.8.8 and access Internet</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateNetConfig({ internetAccess: !netConfig.internetAccess })}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
+                        netConfig.internetAccess !== false
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {netConfig.internetAccess !== false ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+
+                  {/* DHCP Server Toggle & Range */}
+                  <div className="rounded-lg bg-slate-900/80 border border-slate-800 p-2.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-slate-300 block">Integrated DHCP Server</span>
+                        <span className="text-[10px] text-slate-500">Automatically lease IP addresses to connected nodes</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateNetConfig({ dhcpEnabled: !netConfig.dhcpEnabled })}
+                        className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
+                          netConfig.dhcpEnabled !== false
+                            ? 'bg-sky-600 text-white shadow-sm'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {netConfig.dhcpEnabled !== false ? 'ACTIVE' : 'OFF'}
+                      </button>
+                    </div>
+                    {netConfig.dhcpEnabled !== false && (
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[10px]">DHCP Address Pool Range</label>
+                        <input
+                          type="text"
+                          value={netConfig.dhcpRange || '10.0.0.100 - 10.0.0.250'}
+                          onChange={(e) => updateNetConfig({ dhcpRange: e.target.value })}
+                          className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-slate-200 font-mono text-xs"
+                          placeholder="10.0.0.100 - 10.0.0.250"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Virtual Bandwidth */}
+                  <div>
+                    <label className="block text-slate-400 mb-1">Simulated Link Bandwidth</label>
+                    <select
+                      value={netConfig.bandwidthMbps || 1000}
+                      onChange={(e) => updateNetConfig({ bandwidthMbps: Number(e.target.value) })}
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-slate-200 font-mono text-xs"
+                    >
+                      <option value={100}>100 Mbps (FastEthernet)</option>
+                      <option value={1000}>1 Gbps (GigabitEthernet - Recommended)</option>
+                      <option value={10000}>10 Gbps (10-Gigabit Fiber)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* INTERFACES TAB */}
         {activeTab === 'interfaces' && (
           <div className="space-y-2.5">

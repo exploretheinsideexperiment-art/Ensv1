@@ -221,7 +221,38 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
         currentSession.historyIndex = hist.length;
         setCurrentInput('');
       }
+    } else if (e.key === '?') {
+      // Interactive context-sensitive '?' help trigger (Cisco IOS / Palo Alto / FortiGate style)
+      e.preventDefault();
+      const currentText = currentInput;
+      const helpOutput = NetworkCLI.getContextHelp(currentText + '?', activeDevice, currentSession);
+      const cmdLine = `${currentPrompt}${currentText}?`;
+      setTerminalLogs((prev) => {
+        const existing = prev[activeDevice.id] || [];
+        const combined = [...existing, cmdLine, ...helpOutput];
+        const capped = combined.length > MAX_LOG_LINES ? combined.slice(-MAX_LOG_LINES) : combined;
+        return {
+          ...prev,
+          [activeDevice.id]: capped,
+        };
+      });
     }
+  };
+
+  const handleTriggerQuestionMarkHelp = () => {
+    const currentText = currentInput;
+    const helpOutput = NetworkCLI.getContextHelp(currentText + '?', activeDevice, currentSession);
+    const cmdLine = `${currentPrompt}${currentText}?`;
+    setTerminalLogs((prev) => {
+      const existing = prev[activeDevice.id] || [];
+      const combined = [...existing, cmdLine, ...helpOutput];
+      const capped = combined.length > MAX_LOG_LINES ? combined.slice(-MAX_LOG_LINES) : combined;
+      return {
+        ...prev,
+        [activeDevice.id]: capped,
+      };
+    });
+    inputRef.current?.focus();
   };
 
   const handleCopyLogs = () => {
@@ -239,7 +270,11 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
   const quickCommands =
     activeDevice.config.osType === 'generic_linux'
       ? ['ip a', 'ip route', 'ifconfig', 'ping 192.168.1.1', 'curl 192.168.1.1', 'clear']
-      : ['en', 'conf t', 'int e0', 'no shut', 'sh ip int br', 'sh ip ro', 'ping 10.0.0.2', 'clear'];
+      : activeDevice.config.osType === 'palo_alto'
+      ? ['show ?', 'show running ?', 'show system info', 'show interface all', 'commit', 'clear']
+      : activeDevice.config.osType === 'fortigate'
+      ? ['get ?', 'show ?', 'get system status', 'get system interface', 'diagnose', 'clear']
+      : ['show ?', 'show ip ?', 'sh ip int br', 'sh ip ro', 'en', 'conf t', 'int e0', 'no shut', 'clear'];
 
   return (
     <div
@@ -372,6 +407,15 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
           spellCheck={false}
           autoComplete="off"
         />
+        <button
+          type="button"
+          onClick={handleTriggerQuestionMarkHelp}
+          title="Contextual CLI Help (?)"
+          className="shrink-0 flex items-center gap-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1.5 text-xs font-mono font-bold text-amber-400 hover:text-amber-300 transition active:scale-95 shadow-sm"
+        >
+          <span>?</span>
+          <span className="hidden sm:inline font-sans text-[11px] text-slate-300 font-medium">Help</span>
+        </button>
         <button
           type="button"
           onClick={() => handleSendCommand()}

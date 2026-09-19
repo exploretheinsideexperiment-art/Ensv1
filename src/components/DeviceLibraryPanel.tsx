@@ -11,6 +11,8 @@ import {
   Boxes,
   ChevronRight,
   Filter,
+  Cloud,
+  Network,
 } from 'lucide-react';
 import { DeviceTemplate, DeviceCategory } from '../types/network';
 
@@ -39,6 +41,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
     { id: 'routers', label: 'Routers', icon: <Server className="h-3.5 w-3.5 text-emerald-400" /> },
     { id: 'switches', label: 'Switches', icon: <Layers className="h-3.5 w-3.5 text-sky-400" /> },
     { id: 'firewalls', label: 'Firewalls', icon: <Shield className="h-3.5 w-3.5 text-rose-400" /> },
+    { id: 'networks', label: 'Network & Cloud', icon: <Cloud className="h-3.5 w-3.5 text-amber-400" /> },
     { id: 'hosts', label: 'PCs (Win/Linux)', icon: <Monitor className="h-3.5 w-3.5 text-cyan-400" /> },
     { id: 'servers', label: 'Servers', icon: <Server className="h-3.5 w-3.5 text-purple-400" /> },
   ];

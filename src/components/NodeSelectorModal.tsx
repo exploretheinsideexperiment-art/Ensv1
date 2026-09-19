@@ -12,6 +12,8 @@ import {
   Cpu,
   Check,
   Zap,
+  Cloud,
+  Network,
 } from 'lucide-react';
 import { DeviceTemplate, DeviceCategory } from '../types/network';
 
@@ -79,6 +81,30 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
       return (
         <div className="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 font-bold text-xs">
           FGT
+        </div>
+      );
+    }
+
+    if (tpl.category === 'networks' || tpl.category === 'cloud' || tpl.type === 'network' || tpl.type === 'cloud') {
+      const isBridge = tpl.name.toLowerCase().includes('bridge');
+      const isMgmt = tpl.name.toLowerCase().includes('mgmt') || tpl.name.toLowerCase().includes('management');
+      if (isBridge) {
+        return (
+          <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+            <Network className="h-5 w-5" />
+          </div>
+        );
+      }
+      if (isMgmt) {
+        return (
+          <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xs">
+            pnet0
+          </div>
+        );
+      }
+      return (
+        <div className="h-10 w-10 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400">
+          <Cloud className="h-5 w-5" />
         </div>
       );
     }
@@ -242,6 +268,18 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
             >
               <Shield className="h-3.5 w-3.5 text-rose-400" />
               <span>All Firewalls</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory('networks')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                selectedCategory === 'networks'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-950 font-bold'
+                  : 'bg-slate-800/70 text-amber-300 hover:bg-slate-800'
+              }`}
+            >
+              <Cloud className="h-3.5 w-3.5 text-amber-400" />
+              <span>Networks & Cloud</span>
             </button>
 
             <button

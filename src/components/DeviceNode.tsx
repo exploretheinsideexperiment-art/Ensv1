@@ -240,19 +240,122 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
           </g>
         );
 
-      case 'cloud':
+      case 'network':
+      case 'cloud': {
+        const netType = device.config.networkConfig?.networkType;
+        const isBridge =
+          netType === 'bridge' ||
+          device.name.toLowerCase().includes('bridge') ||
+          device.model.toLowerCase().includes('bridge');
+        const isMgmt =
+          netType === 'management' ||
+          device.name.toLowerCase().includes('mgmt') ||
+          device.name.toLowerCase().includes('management') ||
+          device.model.toLowerCase().includes('management');
+
+        if (isBridge) {
+          return (
+            <g>
+              {/* Linux Network Bridge Graphics */}
+              <rect x="14" y="24" width="52" height="26" rx="6" fill="#312e81" stroke="#6366f1" strokeWidth="2" />
+              {/* Bridge Arch */}
+              <path d="M 22,50 Q 40,32 58,50 Z" fill="#0f172a" stroke="#818cf8" strokeWidth="1.5" />
+              {/* Bridge Roadway / Rails */}
+              <line x1="16" y1="28" x2="64" y2="28" stroke="#a5b4fc" strokeWidth="2" strokeDasharray="3,2" />
+              {/* Bridge Badge */}
+              <rect x="25" y="14" width="30" height="12" rx="3" fill="#4f46e5" stroke="#c7d2fe" strokeWidth="1" />
+              <text
+                x="40"
+                y="23"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="7.5"
+                fontWeight="bold"
+                fontFamily="monospace"
+              >
+                BRIDGE
+              </text>
+              {/* Segment ports */}
+              <circle cx="20" cy="38" r="2.5" fill="#38bdf8" />
+              <circle cx="60" cy="38" r="2.5" fill="#38bdf8" />
+            </g>
+          );
+        }
+
+        if (isMgmt) {
+          return (
+            <g>
+              {/* Management Cloud (Cloud0 / pnet0) */}
+              <path
+                d="M 22,46 A 13,13 0 0,1 22,25 A 17,17 0 0,1 55,22 A 15,15 0 0,1 66,46 Z"
+                fill="#b45309"
+                stroke="#fbbf24"
+                strokeWidth="2"
+              />
+              {/* Inner core */}
+              <path
+                d="M 26,44 A 10,10 0 0,1 26,28 A 14,14 0 0,1 52,26 A 12,12 0 0,1 62,44 Z"
+                fill="#78350f"
+              />
+              <text
+                x="40"
+                y="36"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="8"
+                fontWeight="900"
+                fontFamily="monospace"
+                letterSpacing="0.5"
+              >
+                MGMT
+              </text>
+              <rect x="27" y="39" width="26" height="8" rx="2" fill="#d97706" />
+              <text
+                x="40"
+                y="45.5"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="5.5"
+                fontWeight="bold"
+                fontFamily="monospace"
+              >
+                pnet0
+              </text>
+            </g>
+          );
+        }
+
+        // Internet NAT Cloud / External WAN
         return (
           <g>
             {/* Cloud Shape */}
             <path
-              d="M 25,44 A 12,12 0 0,1 25,26 A 16,16 0 0,1 55,24 A 14,14 0 0,1 65,44 Z"
-              fill="#0ea5e9"
+              d="M 20,46 A 14,14 0 0,1 21,24 A 18,18 0 0,1 56,21 A 16,16 0 0,1 68,46 Z"
+              fill="#0369a1"
               stroke="#38bdf8"
               strokeWidth="2"
             />
-            <text x="40" y="38" textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">WAN</text>
+            {/* Inner cloud contour */}
+            <path
+              d="M 24,44 A 11,11 0 0,1 25,27 A 15,15 0 0,1 53,25 A 13,13 0 0,1 64,44 Z"
+              fill="#082f49"
+            />
+            {/* Globe Lat/Long rings inside cloud */}
+            <ellipse cx="40" cy="34" rx="12" ry="7" fill="none" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2,2" />
+            <text
+              x="40"
+              y="37"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize="8.5"
+              fontWeight="bold"
+              fontFamily="sans-serif"
+            >
+              CLOUD
+            </text>
           </g>
         );
+      }
 
       default:
         return (

@@ -5,6 +5,7 @@ export type DeviceCategory =
   | 'firewalls'
   | 'hosts'
   | 'servers'
+  | 'networks'
   | 'cloud'
   | 'appliances';
 
@@ -15,6 +16,7 @@ export type DeviceType =
   | 'host'
   | 'server'
   | 'cloud'
+  | 'network'
   | 'hub';
 
 export type DeviceStatus = 'running' | 'stopped' | 'starting' | 'paused';
@@ -22,6 +24,19 @@ export type DeviceStatus = 'running' | 'stopped' | 'starting' | 'paused';
 export type InterfaceStatus = 'up' | 'down' | 'admin_down';
 
 export type CableType = 'ethernet' | 'gigabit' | 'serial' | 'fiber' | 'management';
+
+export interface NetworkObjectConfig {
+  networkType: 'bridge' | 'management' | 'cloud';
+  cloudSubtype?: 'nat' | 'bridged' | 'host_only' | 'custom_adapter';
+  bridgeName?: string; // e.g. "br0", "virbr0"
+  adapterName?: string; // e.g. "pnet0 (Management)", "pnet1 (NAT)", "eth0 (Physical)"
+  gatewayIp?: string; // e.g. "192.168.1.1" or "10.0.0.1"
+  subnetMask?: string;
+  dhcpEnabled?: boolean;
+  dhcpRange?: string; // e.g. "192.168.1.100 - 192.168.1.200"
+  internetAccess?: boolean;
+  bandwidthMbps?: number;
+}
 
 export interface NetworkInterface {
   id: string;
@@ -61,6 +76,7 @@ export interface DeviceConfig {
   };
   vlans?: { id: number; name: string }[];
   natEnabled?: boolean;
+  networkConfig?: NetworkObjectConfig;
 }
 
 export interface NetworkDevice {

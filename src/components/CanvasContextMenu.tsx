@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Square, RotateCcw, Terminal, Link as LinkIcon, Copy, Trash2, Boxes } from 'lucide-react';
+import { Play, Square, RotateCcw, Terminal, Link as LinkIcon, Copy, Trash2, Boxes, Shield, Layers } from 'lucide-react';
 import { NetworkDevice, NetworkLink } from '../types/network';
 
 interface CanvasContextMenuProps {
@@ -13,6 +13,7 @@ interface CanvasContextMenuProps {
   onStop?: (deviceId: string) => void;
   onRestart?: (deviceId: string) => void;
   onOpenConsole?: (device: NetworkDevice) => void;
+  onOpenWebGui?: (device: NetworkDevice) => void;
   onStartCable?: (device: NetworkDevice) => void;
   onDuplicate?: (deviceId: string) => void;
   onDelete?: (deviceId: string) => void;
@@ -32,6 +33,7 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
   onStop,
   onRestart,
   onOpenConsole,
+  onOpenWebGui,
   onStartCable,
   onDuplicate,
   onDelete,
@@ -99,6 +101,34 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
             <Terminal className="h-3.5 w-3.5 text-sky-400" />
             <span>Console Terminal</span>
           </button>
+
+          {(device.type === 'firewall' ||
+            device.type === 'sdwan' ||
+            device.config.osType === 'palo_alto' ||
+            device.config.osType === 'fortigate' ||
+            device.config.osType?.startsWith('viptela_')) && (
+            <button
+              onClick={() => {
+                onOpenWebGui?.(device);
+                onClose();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-amber-950/40 text-amber-300 font-semibold"
+            >
+              {device.type === 'firewall' ||
+              device.config.osType === 'palo_alto' ||
+              device.config.osType === 'fortigate' ? (
+                <>
+                  <Shield className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Open Web GUI Portal</span>
+                </>
+              ) : (
+                <>
+                  <Layers className="h-3.5 w-3.5 text-orange-400" />
+                  <span>Open SD-WAN vManage GUI</span>
+                </>
+              )}
+            </button>
+          )}
 
           <button
             onClick={() => {

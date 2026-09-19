@@ -21,6 +21,9 @@ export class NetworkCLI {
     if (device.config.osType === 'windows') {
       return `C:\\Users\\Admin> `;
     }
+    if (device.config.osType?.startsWith('viptela_') || device.type === 'sdwan') {
+      return session.mode === 'config' ? `${name}# ` : `${name}# `;
+    }
     if (device.config.osType === 'palo_alto') {
       return session.mode === 'config' ? `admin@${name}# ` : `admin@${name}> `;
     }
@@ -66,6 +69,8 @@ export class NetworkCLI {
 
     if (device.config.osType === 'generic_linux' || device.config.osType === 'windows') {
       return this.executeLinux(cmd, device, session, allDevices);
+    } else if (device.config.osType?.startsWith('viptela_') || device.type === 'sdwan') {
+      return this.executeViptela(cmd, device, session, allDevices);
     } else if (device.config.osType === 'palo_alto') {
       return this.executePaloAlto(cmd, device, session, allDevices);
     } else if (device.config.osType === 'fortigate') {
@@ -1377,4 +1382,239 @@ export class NetworkCLI {
       'Total Mac Addresses for this criterion: 3',
     ];
   }
+
+  // --------------------------------------------------------------------------
+  // CISCO VIPTELA SD-WAN (vManage, vBond, vEdge) CLI ENGINE
+  // --------------------------------------------------------------------------
+  private static executeViptela(
+    cmd: string,
+    device: NetworkDevice,
+    session: CliSessionState,
+    allDevices: NetworkDevice[]
+  ): CliExecutionResult {
+    const parts = cmd.split(/\s+/);
+    const main = parts[0]?.toLowerCase();
+    const arg1 = parts[1]?.toLowerCase();
+    const arg2 = parts[2]?.toLowerCase();
+    const arg3 = parts[3]?.toLowerCase();
+
+    const output: string[] = [];
+    let updatedDevice: Partial<NetworkDevice> | undefined;
+    const sdConfig = device.config.sdwanConfig || {
+      role: (device.config.osType?.replace('viptela_', '') as any) || 'vedge',
+      systemIp: '10.255.255.1',
+      siteId: 10,
+      organizationName: 'Cisco-Viptela-SDWAN-Lab',
+      controlStatus: 'connected',
+      vBondAddress: '198.51.100.1',
+      tlocColor: 'biz-internet',
+      ompPeersCount: 2,
+      bfdSessionsCount: 4,
+    };
+
+    // Navigation and Modes
+    if (cmd === 'exit' || cmd === 'quit') {
+      if (session.mode === 'config') {
+        session.mode = 'privileged';
+        return { output: [], newPrompt: this.getPrompt(device, session) };
+      }
+      return { output: ['[Connection to Viptela node closed]'], newPrompt: this.getPrompt(device, session) };
+    }
+
+    if (cmd === 'config' || cmd === 'conf' || cmd === 'conf t' || cmd === 'configure terminal') {
+      session.mode = 'config';
+      output.push('Entering configuration mode: terminal');
+      return { output, newPrompt: this.getPrompt(device, session) };
+    }
+
+    // Config Mode Commands
+    if (session.mode === 'config') {
+      if (cmd.startsWith('system-ip ')) {
+        const ip = parts[1];
+        if (ip) {
+          updatedDevice = {
+            config: {
+              ...device.config,
+              sdwanConfig: { ...sdConfig, systemIp: ip },
+            },
+          };
+          output.push(`system system-ip ${ip}`);
+        }
+        return { output, newPrompt: this.getPrompt(device, session), updatedDevice };
+      }
+
+      if (cmd.startsWith('site-id ')) {
+        const sid = Number(parts[1]);
+        if (sid) {
+          updatedDevice = {
+            config: {
+              ...device.config,
+              sdwanConfig: { ...sdConfig, siteId: sid },
+            },
+          };
+          output.push(`system site-id ${sid}`);
+        }
+        return { output, newPrompt: this.getPrompt(device, session), updatedDevice };
+      }
+
+      if (cmd.startsWith('organization-name ') || cmd.startsWith('org-name ')) {
+        const org = parts.slice(1).join(' ').replace(/['"]/g, '');
+        if (org) {
+          updatedDevice = {
+            config: {
+              ...device.config,
+              sdwanConfig: { ...sdConfig, organizationName: org },
+            },
+          };
+          output.push(`system organization-name "${org}"`);
+        }
+        return { output, newPrompt: this.getPrompt(device, session), updatedDevice };
+      }
+
+      if (cmd.startsWith('vbond ')) {
+        const vbond = parts[1];
+        if (vbond) {
+          updatedDevice = {
+            config: {
+              ...device.config,
+              sdwanConfig: { ...sdConfig, vBondAddress: vbond },
+            },
+          };
+          output.push(`system vbond ${vbond}`);
+        }
+        return { output, newPrompt: this.getPrompt(device, session), updatedDevice };
+      }
+
+      if (cmd === 'commit' || cmd === 'commit and-quit') {
+        output.push('Commit complete.');
+        if (cmd === 'commit and-quit') {
+          session.mode = 'privileged';
+        }
+        return { output, newPrompt: this.getPrompt(device, session), updatedDevice };
+      }
+    }
+
+    // SHOW COMMANDS
+    if (main === 'show') {
+      if (arg1 === 'control' && arg2 === 'connections') {
+        output.push('                                                        PEER                                          PEER');
+        output.push('PEER    PEER TYPE   PROT  SITE ID  DOMAIN ID  PEER PRIVATE IP  PEER PUBLIC IP   PORT   ORGANIZATION      STATE');
+        output.push('-------------------------------------------------------------------------------------------------------------');
+        output.push(`vbond   vbond       dtls  100      0          ${sdConfig.vBondAddress || '198.51.100.1'}     ${sdConfig.vBondAddress || '198.51.100.1'}    12346  ${sdConfig.organizationName}  up`);
+        output.push(`vmanage vmanage     tls   100      0          10.255.255.1     10.255.255.1     23456  ${sdConfig.organizationName}  up`);
+        output.push(`vsmart  vsmart      tls   100      1          10.255.255.3     10.255.255.3     23456  ${sdConfig.organizationName}  up`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'control' && (arg2 === 'local-properties' || arg2 === 'valid-vsmarts')) {
+        output.push(`personality          ${sdConfig.role}`);
+        output.push(`organization-name    ${sdConfig.organizationName}`);
+        output.push(`site-id              ${sdConfig.siteId}`);
+        output.push(`system-ip            ${sdConfig.systemIp}`);
+        output.push(`vbond                ${sdConfig.vBondAddress || '198.51.100.1'}`);
+        output.push(`enterprise-cert-status VALID`);
+        output.push(`chassis-number       VEDGE-CLOUD-${device.id.slice(0, 8).toUpperCase()}`);
+        output.push(`serial-number        98A4-${device.id.slice(0, 6).toUpperCase()}`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'omp' && (arg2 === 'peers' || !arg2)) {
+        output.push('                                                    ADDRESS                                     OVERLAY INSTANCE');
+        output.push('PEER            TYPE     SITE ID  DOMAIN ID  STATE  FAMILY   TLOC STATE  COLOR            BFD STATE ID');
+        output.push('-------------------------------------------------------------------------------------------------------');
+        output.push(`10.255.255.3    vsmart   100      1          up     ipv4     installed   ${sdConfig.tlocColor || 'biz-internet'}     up        0`);
+        output.push(`10.255.255.4    vsmart   100      1          up     ipv4     installed   ${sdConfig.tlocColor || 'biz-internet'}     up        0`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'omp' && (arg2 === 'routes' || arg2 === 'tlocs')) {
+        output.push('-------------------------------------------------------------------------');
+        output.push('VPN    PREFIX              FROM PEER       COLOR            ENCAP  STATUS');
+        output.push('-------------------------------------------------------------------------');
+        output.push(`0      0.0.0.0/0           10.255.255.3    ${sdConfig.tlocColor || 'biz-internet'}     ipsec  C,I,R`);
+        output.push(`10     10.10.10.0/24       10.255.255.3    ${sdConfig.tlocColor || 'biz-internet'}     ipsec  C,I,R`);
+        output.push(`20     172.16.20.0/24      10.255.255.3    ${sdConfig.tlocColor || 'biz-internet'}     ipsec  C,I,R`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'bfd' && (arg2 === 'sessions' || arg2 === 'summary')) {
+        output.push('                                      SRC DATA  DST DATA  TX     RX     MULT');
+        output.push('SYSTEM IP       SITE ID  STATE  COLOR COLOR     TRANS     INTVL  INTVL  IPL STATE');
+        output.push('--------------------------------------------------------------------------------');
+        output.push(`10.255.255.10   100      up     biz-int biz-int ipsec     1000   1000   7   up`);
+        output.push(`10.255.255.20   20       up     mpls    mpls    ipsec     1000   1000   7   up`);
+        output.push(`10.255.255.30   30       up     biz-int biz-int ipsec     1000   1000   7   up`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'ip' && arg2 === 'routes') {
+        output.push('Codes: C - connected, S - static, O - OMP, B - BGP');
+        output.push('Routing Table: VPN 0');
+        output.push('C    198.51.100.0/24 is directly connected, ge0/0');
+        output.push('Routing Table: VPN 10');
+        output.push('C    10.10.10.0/24 is directly connected, ge0/1');
+        output.push(`O    10.20.20.0/24 [251/0] via ${sdConfig.systemIp}, color ${sdConfig.tlocColor}`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'version' || arg1 === 'system' || arg1 === 'hardware') {
+        output.push(`Cisco Viptela OS Version: 20.9.3`);
+        output.push(`Device Role: ${sdConfig.role.toUpperCase()}`);
+        output.push(`Device Model: ${device.vendor} ${device.model}`);
+        output.push(`System IP: ${sdConfig.systemIp}`);
+        output.push(`Site ID: ${sdConfig.siteId}`);
+        output.push(`Organization: ${sdConfig.organizationName}`);
+        output.push(`Uptime: 5 days, 08:14:22`);
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'run' || arg1 === 'running' || arg1 === 'running-config') {
+        output.push('system');
+        output.push(` host-name             ${device.name}`);
+        output.push(` system-ip             ${sdConfig.systemIp}`);
+        output.push(` site-id               ${sdConfig.siteId}`);
+        output.push(` organization-name     "${sdConfig.organizationName}"`);
+        output.push(` vbond                 ${sdConfig.vBondAddress || '198.51.100.1'}`);
+        output.push('!');
+        output.push('vpn 0');
+        output.push(' interface ge0/0');
+        output.push('  ip address 198.51.100.25/24');
+        output.push(`  tunnel-interface`);
+        output.push(`   encapsulation ipsec`);
+        output.push(`   color ${sdConfig.tlocColor || 'biz-internet'}`);
+        output.push('   no shutdown');
+        output.push('!');
+        output.push('vpn 512');
+        output.push(' interface eth0');
+        output.push('  ip address 192.168.1.10/24');
+        output.push('  no shutdown');
+        output.push('!');
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+
+      if (arg1 === 'interface' || arg1 === 'interfaces') {
+        output.push('Interface   Admin  Oper  IPv4 Address     Mask           MTU   Encap');
+        output.push('---------------------------------------------------------------------');
+        device.config.interfaces.forEach((iface) => {
+          output.push(`${iface.name.padEnd(11, ' ')} ${iface.status.padEnd(6, ' ')} up    ${(iface.ipAddress || 'unassigned').padEnd(16, ' ')} 255.255.255.0  1500  null`);
+        });
+        return { output, newPrompt: this.getPrompt(device, session) };
+      }
+    }
+
+    // Ping utility
+    if (main === 'ping' && parts[1]) {
+      const target = parts[1];
+      output.push(`Ping to ${target} (using VPN 0 transport):`);
+      output.push(`Sending 5, 100-byte ICMP Echos to ${target}, timeout is 2 seconds:`);
+      output.push(`!!!!!`);
+      output.push(`Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/4 ms`);
+      return { output, newPrompt: this.getPrompt(device, session) };
+    }
+
+    // Default Fallback
+    output.push(`% Invalid Viptela command: "${cmd}". Type "?" or "show control connections" for assistance.`);
+    return { output, newPrompt: this.getPrompt(device, session) };
+  }
 }
+

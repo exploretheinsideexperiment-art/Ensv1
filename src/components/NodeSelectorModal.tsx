@@ -31,7 +31,7 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
   onSelectNode,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<DeviceCategory | 'all' | 'palo_forti'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<DeviceCategory | 'all' | 'palo_forti' | 'sdwan'>('all');
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -39,7 +39,15 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
   // Filter templates
   const filteredTemplates = templates.filter((tpl) => {
     let matchesCategory = true;
-    if (selectedCategory === 'palo_forti') {
+    if (selectedCategory === 'sdwan') {
+      matchesCategory =
+        tpl.category === 'sdwan' ||
+        tpl.type === 'sdwan' ||
+        tpl.vendor.toLowerCase().includes('viptela') ||
+        tpl.name.toLowerCase().includes('vmanage') ||
+        tpl.name.toLowerCase().includes('vbond') ||
+        tpl.name.toLowerCase().includes('vedge');
+    } else if (selectedCategory === 'palo_forti') {
       matchesCategory =
         tpl.category === 'firewalls' &&
         (tpl.vendor.toLowerCase().includes('palo') ||
@@ -110,6 +118,12 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
     }
 
     switch (tpl.category) {
+      case 'sdwan':
+        return (
+          <div className="h-10 w-10 rounded-xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 font-bold text-xs">
+            SDW
+          </div>
+        );
       case 'routers':
         return (
           <div className="h-10 w-10 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
@@ -169,7 +183,7 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <span>Select Network Node</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-normal">
-                  Router • Switch • Palo Alto • FortiGate • PC
+                  Router • Switch • Firewall • SD-WAN (Viptela) • PC
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
@@ -268,6 +282,18 @@ export const NodeSelectorModal: React.FC<NodeSelectorModalProps> = ({
             >
               <Shield className="h-3.5 w-3.5 text-rose-400" />
               <span>All Firewalls</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory('sdwan')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                selectedCategory === 'sdwan'
+                  ? 'bg-orange-600 text-white shadow-md shadow-orange-950 font-bold'
+                  : 'bg-slate-800/70 text-orange-300 hover:bg-slate-800'
+              }`}
+            >
+              <Network className="h-3.5 w-3.5 text-orange-400" />
+              <span>SD-WAN (Viptela)</span>
             </button>
 
             <button

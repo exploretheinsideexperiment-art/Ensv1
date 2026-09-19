@@ -240,6 +240,63 @@ export const DeviceNode: React.FC<DeviceNodeProps> = ({
           </g>
         );
 
+      case 'sdwan': {
+        const isVManage =
+          device.config.osType === 'viptela_vmanage' ||
+          device.name.toLowerCase().includes('manage') ||
+          device.model.toLowerCase().includes('vmanage');
+        const isVBond =
+          device.config.osType === 'viptela_vbond' ||
+          device.name.toLowerCase().includes('bond') ||
+          device.model.toLowerCase().includes('vbond');
+
+        if (isVManage) {
+          return (
+            <g>
+              {/* vManage Dashboard Node Graphic */}
+              <rect x="12" y="14" width="56" height="44" rx="6" fill="#1e1b4b" stroke="#6366f1" strokeWidth="2" />
+              <rect x="16" y="18" width="48" height="12" rx="2" fill="#312e81" />
+              <circle cx="22" cy="24" r="2.5" fill="#a5b4fc" />
+              <line x1="28" y1="24" x2="58" y2="24" stroke="#818cf8" strokeWidth="1.5" strokeLinecap="round" />
+              {/* Stats bento miniature */}
+              <rect x="16" y="34" width="22" height="18" rx="2" fill="#4338ca" />
+              <rect x="42" y="34" width="22" height="18" rx="2" fill="#4f46e5" />
+              <text x="40" y="66" textAnchor="middle" fill="#c7d2fe" fontSize="7" fontWeight="bold">vManage</text>
+            </g>
+          );
+        }
+
+        if (isVBond) {
+          return (
+            <g>
+              {/* vBond Orchestrator Node Graphic */}
+              <circle cx="40" cy="36" r="22" fill="#083344" stroke="#06b6d4" strokeWidth="2" />
+              <circle cx="40" cy="36" r="14" fill="#0e7490" stroke="#67e8f9" strokeWidth="1.5" strokeDasharray="3 2" />
+              {/* Orchestrator cross arrows */}
+              <path d="M 40,24 L 40,48 M 28,36 L 52,36" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="40" cy="36" r="4" fill="#22d3ee" />
+              <text x="40" y="66" textAnchor="middle" fill="#a5f3fc" fontSize="7" fontWeight="bold">vBond</text>
+            </g>
+          );
+        }
+
+        // vEdge Router
+        return (
+          <g>
+            {/* vEdge SD-WAN Router Box */}
+            <rect x="12" y="16" width="56" height="38" rx="5" fill="#431407" stroke="#ea580c" strokeWidth="2" />
+            <polygon points="12,16 22,8 68,8 58,16" fill="#7c2d12" stroke="#ea580c" strokeWidth="1" />
+            <polygon points="68,8 78,16 68,54 58,46" fill="#9a3412" stroke="#ea580c" strokeWidth="1" />
+            {/* Overlay WAN Mesh Symbol */}
+            <circle cx="28" cy="35" r="4" fill="#fdba74" />
+            <circle cx="52" cy="35" r="4" fill="#fdba74" />
+            <path d="M 28,35 Q 40,25 52,35" fill="none" stroke="#fed7aa" strokeWidth="1.5" strokeDasharray="2 1" />
+            <path d="M 28,35 Q 40,45 52,35" fill="none" stroke="#fed7aa" strokeWidth="1.5" strokeDasharray="2 1" />
+            <text x="40" y="66" textAnchor="middle" fill="#fed7aa" fontSize="7" fontWeight="bold">vEdge</text>
+          </g>
+        );
+      }
+
       case 'network':
       case 'cloud': {
         const netType = device.config.networkConfig?.networkType;

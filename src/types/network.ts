@@ -3,6 +3,7 @@ export type DeviceCategory =
   | 'routers'
   | 'switches'
   | 'firewalls'
+  | 'sdwan'
   | 'hosts'
   | 'servers'
   | 'networks'
@@ -13,6 +14,7 @@ export type DeviceType =
   | 'router'
   | 'switch'
   | 'firewall'
+  | 'sdwan'
   | 'host'
   | 'server'
   | 'cloud'
@@ -57,9 +59,46 @@ export interface NetworkInterface {
   };
 }
 
+export interface FirewallPolicyRule {
+  id: string;
+  name: string;
+  action: 'allow' | 'deny' | 'drop';
+  sourceZone: string;
+  destZone: string;
+  sourceIp: string;
+  destIp: string;
+  service: 'any' | 'http' | 'https' | 'ssh' | 'dns' | 'icmp';
+  logging: boolean;
+  enabled: boolean;
+}
+
+export interface FirewallNatRule {
+  id: string;
+  name: string;
+  type: 'snat' | 'dnat' | 'masquerade';
+  origSource: string;
+  transSource: string;
+  interfaceName: string;
+  enabled: boolean;
+}
+
+export interface SDWANViptelaConfig {
+  role: 'vmanage' | 'vbond' | 'vedge';
+  systemIp: string;
+  siteId: number;
+  organizationName: string;
+  vBondAddress?: string;
+  controlStatus: 'connected' | 'connecting' | 'down';
+  ompPeersCount?: number;
+  bfdSessionsCount?: number;
+  tlocColor?: 'biz-internet' | 'mpls' | 'lte' | 'public-internet';
+  vpnList?: { vpnId: number; name: string; subnet: string }[];
+  appliedTemplate?: string;
+}
+
 export interface DeviceConfig {
   hostname: string;
-  osType: 'cisco_ios' | 'linux_quagga' | 'vyos' | 'pfsense' | 'generic_linux' | 'palo_alto' | 'fortigate' | 'windows';
+  osType: 'cisco_ios' | 'linux_quagga' | 'vyos' | 'pfsense' | 'generic_linux' | 'palo_alto' | 'fortigate' | 'windows' | 'viptela_vmanage' | 'viptela_vbond' | 'viptela_vedge';
   interfaces: NetworkInterface[];
   routingProtocols: {
     ospf?: {
@@ -77,6 +116,9 @@ export interface DeviceConfig {
   vlans?: { id: number; name: string }[];
   natEnabled?: boolean;
   networkConfig?: NetworkObjectConfig;
+  firewallRules?: FirewallPolicyRule[];
+  firewallNatRules?: FirewallNatRule[];
+  sdwanConfig?: SDWANViptelaConfig;
 }
 
 export interface NetworkDevice {

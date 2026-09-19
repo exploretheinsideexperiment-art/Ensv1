@@ -1,6 +1,6 @@
 {
   "name": "ENSv1 - Explore Network Simulator",
-  "description": "Professional browser-based network laboratory for designing, connecting, configuring, and exploring complex network topologies with virtual routers, switches, firewalls, and hosts.",
+  "description": "Professional browser-based network laboratory for designing, connecting, configuring, and exploring complex network topologies with virtual routers, switches, firewalls, SD-WAN (Viptela vManage/vBond/vEdge), and hosts with full CLI and Web GUI support.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

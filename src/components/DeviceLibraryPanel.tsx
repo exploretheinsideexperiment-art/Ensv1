@@ -41,6 +41,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
     { id: 'routers', label: 'Routers', icon: <Server className="h-3.5 w-3.5 text-emerald-400" /> },
     { id: 'switches', label: 'Switches', icon: <Layers className="h-3.5 w-3.5 text-sky-400" /> },
     { id: 'firewalls', label: 'Firewalls', icon: <Shield className="h-3.5 w-3.5 text-rose-400" /> },
+    { id: 'sdwan', label: 'SD-WAN', icon: <Network className="h-3.5 w-3.5 text-orange-400" /> },
     { id: 'networks', label: 'Network & Cloud', icon: <Cloud className="h-3.5 w-3.5 text-amber-400" /> },
     { id: 'hosts', label: 'PCs (Win/Linux)', icon: <Monitor className="h-3.5 w-3.5 text-cyan-400" /> },
     { id: 'servers', label: 'Servers', icon: <Server className="h-3.5 w-3.5 text-purple-400" /> },
@@ -166,6 +167,7 @@ export const DeviceLibraryPanel: React.FC<DeviceLibraryPanelProps> = ({
                     {tpl.category === 'routers' && <Server className="h-4 w-4 text-emerald-400" />}
                     {tpl.category === 'switches' && <Layers className="h-4 w-4 text-sky-400" />}
                     {tpl.category === 'firewalls' && <Shield className="h-4 w-4 text-rose-400" />}
+                    {tpl.category === 'sdwan' && <Network className="h-4 w-4 text-orange-400" />}
                     {tpl.category === 'hosts' && <Monitor className="h-4 w-4 text-amber-400" />}
                     {tpl.category === 'servers' && <Server className="h-4 w-4 text-purple-400" />}
                   </div>

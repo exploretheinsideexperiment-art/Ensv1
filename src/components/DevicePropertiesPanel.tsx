@@ -20,6 +20,8 @@ import {
   Cloud,
   Globe,
   Radio,
+  Shield,
+  Layers,
 } from 'lucide-react';
 import {
   NetworkDevice,
@@ -42,6 +44,7 @@ interface DevicePropertiesPanelProps {
   onDeleteDevice: (deviceId: string) => void;
   onDuplicateDevice: (deviceId: string) => void;
   onOpenConsole: (device: NetworkDevice) => void;
+  onOpenWebGui?: (device: NetworkDevice) => void;
   onUpdateLink: (updated: NetworkLink) => void;
   onDeleteLink: (linkId: string) => void;
 }
@@ -59,6 +62,7 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
   onDeleteDevice,
   onDuplicateDevice,
   onOpenConsole,
+  onOpenWebGui,
   onUpdateLink,
   onDeleteLink,
 }) => {
@@ -347,6 +351,34 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
             <span>Console</span>
           </button>
         </div>
+
+        {/* Web Portal GUI Configuration Button (Firewall & SD-WAN) */}
+        {(selectedDevice.type === 'firewall' ||
+          selectedDevice.type === 'sdwan' ||
+          selectedDevice.config.osType === 'palo_alto' ||
+          selectedDevice.config.osType === 'fortigate' ||
+          selectedDevice.config.osType?.startsWith('viptela_')) && (
+          <div className="pt-1">
+            <button
+              onClick={() => onOpenWebGui?.(selectedDevice)}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-gradient-to-r from-amber-600/30 via-orange-600/30 to-amber-600/30 hover:from-amber-600/40 hover:to-orange-600/40 border border-amber-500/50 text-amber-300 font-bold text-xs shadow-lg transition"
+            >
+              {selectedDevice.type === 'firewall' ||
+              selectedDevice.config.osType === 'palo_alto' ||
+              selectedDevice.config.osType === 'fortigate' ? (
+                <>
+                  <Shield className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Open Firewall Web GUI Portal</span>
+                </>
+              ) : (
+                <>
+                  <Layers className="h-3.5 w-3.5 text-orange-400" />
+                  <span>Open SD-WAN vManage Web GUI</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation Sub-Tabs */}

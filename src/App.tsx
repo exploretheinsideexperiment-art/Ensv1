@@ -22,6 +22,8 @@ import { PWAInstallModal } from './components/PWAInstallModal';
 import { HelpAboutModal } from './components/HelpAboutModal';
 import { CanvasContextMenu } from './components/CanvasContextMenu';
 import { NodeSelectorModal } from './components/NodeSelectorModal';
+import { FirewallWebGuiModal } from './components/FirewallWebGuiModal';
+import { SDWANWebGuiModal } from './components/SDWANWebGuiModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Terminal, HardDrive, Smartphone, Activity, Play, Pause, Square, Link as LinkIcon, Plus } from 'lucide-react';
 
@@ -126,6 +128,23 @@ export default function App() {
   const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false);
   const [isPacketInspectorOpen, setIsPacketInspectorOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [webGuiDevice, setWebGuiDevice] = useState<NetworkDevice | null>(null);
+  const [isFirewallWebGuiOpen, setIsFirewallWebGuiOpen] = useState(false);
+  const [isSDWANWebGuiOpen, setIsSDWANWebGuiOpen] = useState(false);
+
+  const handleOpenWebGui = useCallback((device: NetworkDevice) => {
+    setWebGuiDevice(device);
+    if (
+      device.type === 'sdwan' ||
+      device.config.osType?.startsWith('viptela_')
+    ) {
+      setIsSDWANWebGuiOpen(true);
+      setIsFirewallWebGuiOpen(false);
+    } else {
+      setIsFirewallWebGuiOpen(true);
+      setIsSDWANWebGuiOpen(false);
+    }
+  }, []);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -1217,6 +1236,7 @@ export default function App() {
           onDeleteDevice={handleDeleteDevice}
           onDuplicateDevice={handleDuplicateDevice}
           onOpenConsole={handleOpenConsole}
+          onOpenWebGui={handleOpenWebGui}
           onUpdateLink={handleUpdateLink}
           onDeleteLink={handleDeleteLink}
         />
@@ -1315,6 +1335,7 @@ export default function App() {
           onStop={handleStopDevice}
           onRestart={handleRestartDevice}
           onOpenConsole={handleOpenConsole}
+          onOpenWebGui={handleOpenWebGui}
           onStartCable={(dev) => {
             setIsCableToolActive(true);
             setCableSourceDevice(dev);
@@ -1330,7 +1351,28 @@ export default function App() {
         />
       )}
 
-      {/* 12. Offline Mode & Connectivity Indicator */}
+      {/* 12. Firewall Web GUI Modal */}
+      {webGuiDevice && isFirewallWebGuiOpen && (
+        <FirewallWebGuiModal
+          isOpen={isFirewallWebGuiOpen}
+          onClose={() => setIsFirewallWebGuiOpen(false)}
+          device={webGuiDevice}
+          onUpdateDevice={handleUpdateDevice}
+        />
+      )}
+
+      {/* 13. SD-WAN vManage Web GUI Modal */}
+      {webGuiDevice && isSDWANWebGuiOpen && (
+        <SDWANWebGuiModal
+          isOpen={isSDWANWebGuiOpen}
+          onClose={() => setIsSDWANWebGuiOpen(false)}
+          device={webGuiDevice}
+          allDevices={currentProject.devices}
+          onUpdateDevice={handleUpdateDevice}
+        />
+      )}
+
+      {/* 14. Offline Mode & Connectivity Indicator */}
       <OfflineIndicator />
     </div>
   );

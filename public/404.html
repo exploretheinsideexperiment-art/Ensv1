@@ -2,16 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Redirecting...</title>
+    <title>ENSv1 Laboratory Loading...</title>
     <script>
-      // Single Page Apps for GitHub Pages redirect
-      var path = window.location.pathname;
-      var query = window.location.search;
-      var hash = window.location.hash;
-      window.location.replace('./' + query + hash);
+      (function() {
+        var pathSegments = window.location.pathname.split('/').filter(Boolean);
+        var redirectUrl = './';
+        if (window.location.hostname.endsWith('github.io') && pathSegments.length > 0) {
+          redirectUrl = '/' + pathSegments[0] + '/';
+        }
+        window.location.replace(redirectUrl + window.location.search + window.location.hash);
+      })();
     </script>
   </head>
-  <body>
-    <p>Redirecting to application...</p>
+  <body style="background: #080d17; color: #38bdf8; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <p>Redirecting to ENSv1 Laboratory...</p>
   </body>
 </html>

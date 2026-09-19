@@ -9,7 +9,14 @@ interface PWAInstallModalProps {
 
 export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClose }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-  const [activeTab, setActiveTab] = useState<'android' | 'ios' | 'desktop'>('android');
+  const [activeTab, setActiveTab] = useState<'android' | 'ios' | 'desktop'>(() => {
+    if (typeof window !== 'undefined') {
+      const ua = window.navigator.userAgent.toLowerCase();
+      if (/iphone|ipad|ipod/.test(ua)) return 'ios';
+      if (/android/.test(ua)) return 'android';
+    }
+    return 'desktop';
+  });
   const [installedSuccess, setInstalledSuccess] = useState(false);
 
   if (!isOpen) return null;
@@ -82,6 +89,19 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
 
         {/* Tab Content */}
         <div className="p-6 space-y-4 overflow-y-auto">
+          {/* Offline Ready Guarantee Badge */}
+          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-sky-950/40 border border-sky-600/30 text-xs">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400 shrink-0 font-bold text-sm">
+              ⚡
+            </div>
+            <div>
+              <div className="font-bold text-white mb-0.5">100% Offline Capable • बिना इंटरनेट के चलेगा</div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                ENSv1 works fully offline on Android, iPhone/iPad, and PC. All network simulation, CLI engines, packet analysis, and project saves run locally on your device without needing an active internet connection.
+              </p>
+            </div>
+          </div>
+
           {isInstalled && (
             <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
               <CheckCircle className="h-5 w-5 shrink-0" />

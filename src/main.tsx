@@ -4,26 +4,16 @@ import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
-// Purge any stale service workers & caches from previous sessions
-if (typeof window !== 'undefined') {
-  try {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
-      }).catch(() => {});
-    }
-    if ('caches' in window) {
-      caches.keys().then((keys) => {
-        for (const key of keys) {
-          caches.delete(key);
-        }
-      }).catch(() => {});
-    }
-  } catch {
-    // Ignore storage errors
-  }
+import { registerSW } from 'virtual:pwa-register';
+
+// Register service worker for offline support and PWA caching
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  registerSW({
+    immediate: true,
+    onOfflineReady() {
+      console.info('ENSv1: All assets cached. Application is ready to run offline without internet.');
+    },
+  });
 }
 
 let rootInstance: ReturnType<typeof createRoot> | null = null;

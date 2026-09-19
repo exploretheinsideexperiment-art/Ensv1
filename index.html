@@ -9,41 +9,57 @@
     <meta property="og:description" content="Professional browser-based network laboratory for designing, connecting, configuring, and exploring complex network topologies with virtual routers, switches, firewalls, and hosts." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#0ea5e9" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ENSv1" />
+    <meta name="ens-is-source" content="source" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="alternate icon" href="./favicon.ico" />
     <script>
-      // Clean up any stale service workers from prior testing
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for (var i = 0; i < regs.length; i++) {
-            regs[i].unregister();
+      // Automatic GitHub Pages handler:
+      // If user opened uncompiled source on GitHub Pages (e.g. branch 'main' folder '/ (root)'),
+      // seamlessly redirect to the pre-compiled production build in /docs/
+      (function() {
+        try {
+          var isGitHub = window.location.hostname.endsWith('github.io');
+          var isDocs = window.location.pathname.indexOf('/docs') !== -1;
+          var meta = document.querySelector('meta[name="ens-is-source"]');
+          var isSource = meta && meta.getAttribute('content') === 'source';
+          if (isGitHub && !isDocs && isSource) {
+            var p = window.location.pathname;
+            if (!p.endsWith('/')) p += '/';
+            window.location.replace(p + 'docs/' + window.location.search + window.location.hash);
           }
-        }).catch(function() {});
-      }
-
-      // If loaded uncompiled on GitHub Pages (Deploy from branch -> root), auto-redirect to pre-built /docs/
-      if (window.location.hostname.endsWith('github.io') && !window.location.pathname.includes('/docs/')) {
-        var rawSrc = document.querySelector('script[src*="/src/main.tsx"]');
-        if (rawSrc) {
-          var p = window.location.pathname;
-          if (!p.endsWith('/')) p += '/';
-          window.location.replace(p + 'docs/' + window.location.search + window.location.hash);
+        } catch (e) {
+          // ignore
         }
-      }
+      })();
     </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden select-none">
     <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #080d17; color: #38bdf8; font-family: system-ui, -apple-system, sans-serif;">
-        <div style="width: 44px; height: 44px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <div id="ens-initial-loader" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #080d17; color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; padding: 20px; text-align: center;">
+        <div style="width: 44px; height: 44px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;"></div>
+        <div style="font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">Loading ENSv1 Laboratory...</div>
+        <div style="font-size: 11px; color: #94a3b8;">Explore Network Simulator • Standalone &amp; Offline Ready</div>
         <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        <div id="ens-fallback-box" style="display: none; margin-top: 20px; padding: 16px; background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 12px; max-width: 400px;">
+          <p style="font-size: 12px; color: #f87171; margin-bottom: 10px;">If this page does not load automatically on GitHub Pages:</p>
+          <a id="ens-docs-link" href="./docs/" style="display: inline-block; background: #0284c7; color: #ffffff; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: bold; text-decoration: none;">Launch Pre-Built App (/docs/)</a>
+        </div>
       </div>
+      <script>
+        setTimeout(function() {
+          var fb = document.getElementById('ens-fallback-box');
+          if (fb && !document.getElementById('ensv1-top-header')) {
+            fb.style.display = 'block';
+          }
+        }, 3500);
+      </script>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

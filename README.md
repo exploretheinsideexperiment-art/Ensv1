@@ -35,3 +35,26 @@ Yeh command automatically project build karke `gh-pages` branch par push kar deg
 - Development server run karne ke liye: `npm run dev`
 - Production build generate karne ke liye: `npm run build`
 - Linter check: `npm run lint`
+
+---
+
+## 📱 Android, iPhone/iPad aur PC par Direct App Install aur Offline Use
+
+ENSv1 ek **Progressive Web App (PWA)** hai. Ise bina Play Store ya App Store ke directly device me install kiya ja sakta hai aur yeh **100% bina internet (offline)** chalta hai.
+
+### 🤖 Android:
+1. Google Chrome ya Samsung Internet me app open karein.
+2. Top bar me **"Install App"** button par click karein ya browser ke **3 dots (⋮)** menu me jakar **"Install app"** / **"Add to Home screen"** par tap karein.
+3. App icon aapke mobile home screen par add ho jayega aur bina internet ke bhi open hoga.
+
+### 🍏 iPhone / iPad (iOS Safari):
+1. Apple Safari browser me website open karein.
+2. Neeche (iPad par upar) **Share** icon (⬆️) par tap karein.
+3. Neeche scroll karke **"Add to Home Screen"** (⊞) select karein aur **Add** par click karein.
+4. Fullscreen app bina browser address bar ke run hoga.
+
+### 💻 PC / Laptop (Windows, Mac, Linux):
+1. Google Chrome ya Microsoft Edge me open karein.
+2. URL bar ke right side me **Install icon (🖥️ ⬇️)** ya top-bar ke **"Install App"** button par click karein.
+3. Dedicated desktop window me bina kisi browser tab ke full offline laboratory run karein.
+

@@ -22,6 +22,7 @@ import { PWAInstallModal } from './components/PWAInstallModal';
 import { HelpAboutModal } from './components/HelpAboutModal';
 import { CanvasContextMenu } from './components/CanvasContextMenu';
 import { NodeSelectorModal } from './components/NodeSelectorModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { Terminal, HardDrive, Smartphone, Activity, Play, Pause, Square, Link as LinkIcon, Plus } from 'lucide-react';
 
 const STORAGE_KEY_SAVED_PROJECTS = 'ensv1_saved_topologies';
@@ -1328,6 +1329,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* 12. Offline Mode & Connectivity Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }

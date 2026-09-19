@@ -420,32 +420,79 @@ export default function App() {
 
   // DEVICE LIFECYCLE CONTROLS
   const handleStartDevice = (deviceId: string) => {
-    setCurrentProject((prev) => ({
-      ...prev,
-      devices: prev.devices.map((d) =>
-        d.id === deviceId
-          ? {
-              ...d,
-              status: 'running',
-              config: {
-                ...d.config,
-                interfaces: d.config.interfaces.map((i) => ({
-                  ...i,
-                  status: i.connectedTo ? 'up' : i.status,
-                })),
-              },
-            }
-          : d
-      ),
-    }));
+    setCurrentProject((prev) => {
+      const updatedDevices = prev.devices.map((d) => {
+        if (d.id !== deviceId) return d;
+        return {
+          ...d,
+          status: 'running' as const,
+          config: {
+            ...d.config,
+            interfaces: d.config.interfaces.map((i) => {
+              // Router interfaces MUST NOT be automatically brought up.
+              // They stay in their configured state (by default 'down') until configured via 'no shutdown'.
+              if (d.type === 'router') {
+                return i;
+              }
+              return {
+                ...i,
+                status: i.connectedTo ? ('up' as const) : i.status,
+              };
+            }),
+          },
+        };
+      });
+
+      const devMap = new Map(updatedDevices.map((d) => [d.id, d]));
+      const updatedLinks = prev.links.map((l) => {
+        const src = devMap.get(l.sourceDeviceId);
+        const tgt = devMap.get(l.targetDeviceId);
+        const srcIf = src?.config.interfaces.find(
+          (i) => i.id === l.sourceInterfaceId || i.name === l.sourceInterfaceName
+        );
+        const tgtIf = tgt?.config.interfaces.find(
+          (i) => i.id === l.targetInterfaceId || i.name === l.targetInterfaceName
+        );
+
+        const isSrcUp = src?.status === 'running' && srcIf?.status === 'up';
+        const isTgtUp = tgt?.status === 'running' && tgtIf?.status === 'up';
+        const linkIsUp = !!(isSrcUp && isTgtUp);
+
+        return {
+          ...l,
+          status: linkIsUp ? ('up' as const) : ('down' as const),
+          currentTrafficMbps: linkIsUp
+            ? l.currentTrafficMbps && l.currentTrafficMbps > 0
+              ? l.currentTrafficMbps
+              : Number((Math.random() * 5 + 2).toFixed(1))
+            : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        devices: updatedDevices,
+        links: updatedLinks,
+      };
+    });
     setHasUnsavedChanges(true);
   };
 
   const handleStopDevice = (deviceId: string) => {
-    setCurrentProject((prev) => ({
-      ...prev,
-      devices: prev.devices.map((d) => (d.id === deviceId ? { ...d, status: 'stopped' } : d)),
-    }));
+    setCurrentProject((prev) => {
+      const updatedDevices = prev.devices.map((d) => (d.id === deviceId ? { ...d, status: 'stopped' as const } : d));
+      const updatedLinks = prev.links.map((l) => {
+        if (l.sourceDeviceId === deviceId || l.targetDeviceId === deviceId) {
+          return { ...l, status: 'down' as const, currentTrafficMbps: 0 };
+        }
+        return l;
+      });
+      return {
+        ...prev,
+        devices: updatedDevices,
+        links: updatedLinks,
+      };
+    });
     setHasUnsavedChanges(true);
   };
 
@@ -455,30 +502,59 @@ export default function App() {
   };
 
   const handleStartAll = () => {
-    setCurrentProject((prev) => ({
-      ...prev,
-      devices: prev.devices.map((d) => ({
+    setCurrentProject((prev) => {
+      const updatedDevices = prev.devices.map((d) => ({
         ...d,
-        status: 'running',
+        status: 'running' as const,
         config: {
           ...d.config,
-          interfaces: d.config.interfaces.map((i) => ({
-            ...i,
-            status: i.connectedTo ? 'up' : i.status,
-          })),
+          interfaces: d.config.interfaces.map((i) => {
+            // Router ports do NOT auto-up; only ports explicitly configured with 'no shutdown' stay/turn up.
+            if (d.type === 'router') {
+              return i;
+            }
+            return {
+              ...i,
+              status: i.connectedTo ? ('up' as const) : i.status,
+            };
+          }),
         },
-      })),
-      links: prev.links.map((l) => ({
-        ...l,
-        status: 'up',
-        currentTrafficMbps:
-          l.currentTrafficMbps && l.currentTrafficMbps > 0
-            ? l.currentTrafficMbps
-            : Number((Math.random() * 8 + 3).toFixed(1)),
-      })),
-    }));
-    setSimulationToast({ message: 'Topology Started — All Devices Running', type: 'start' });
-    setTimeout(() => setSimulationToast(null), 2500);
+      }));
+
+      const devMap = new Map(updatedDevices.map((d) => [d.id, d]));
+      const updatedLinks = prev.links.map((l) => {
+        const src = devMap.get(l.sourceDeviceId);
+        const tgt = devMap.get(l.targetDeviceId);
+        const srcIf = src?.config.interfaces.find(
+          (i) => i.id === l.sourceInterfaceId || i.name === l.sourceInterfaceName
+        );
+        const tgtIf = tgt?.config.interfaces.find(
+          (i) => i.id === l.targetInterfaceId || i.name === l.targetInterfaceName
+        );
+
+        const isSrcUp = src?.status === 'running' && srcIf?.status === 'up';
+        const isTgtUp = tgt?.status === 'running' && tgtIf?.status === 'up';
+        const linkIsUp = !!(isSrcUp && isTgtUp);
+
+        return {
+          ...l,
+          status: linkIsUp ? ('up' as const) : ('down' as const),
+          currentTrafficMbps: linkIsUp
+            ? l.currentTrafficMbps && l.currentTrafficMbps > 0
+              ? l.currentTrafficMbps
+              : Number((Math.random() * 8 + 3).toFixed(1))
+            : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        devices: updatedDevices,
+        links: updatedLinks,
+      };
+    });
+    setSimulationToast({ message: 'Topology Started — Router ports remain down (red) until configured with "no shutdown"', type: 'start' });
+    setTimeout(() => setSimulationToast(null), 3000);
     setHasUnsavedChanges(true);
   };
 
@@ -487,18 +563,11 @@ export default function App() {
       ...prev,
       devices: prev.devices.map((d) => ({
         ...d,
-        status: 'stopped',
-        config: {
-          ...d.config,
-          interfaces: d.config.interfaces.map((i) => ({
-            ...i,
-            status: 'down',
-          })),
-        },
+        status: 'stopped' as const,
       })),
       links: prev.links.map((l) => ({
         ...l,
-        status: 'down',
+        status: 'down' as const,
         currentTrafficMbps: 0,
       })),
     }));
@@ -532,10 +601,42 @@ export default function App() {
   };
 
   const handleUpdateDevice = (updated: NetworkDevice) => {
-    setCurrentProject((prev) => ({
-      ...prev,
-      devices: prev.devices.map((d) => (d.id === updated.id ? updated : d)),
-    }));
+    setCurrentProject((prev) => {
+      const updatedDevices = prev.devices.map((d) => (d.id === updated.id ? updated : d));
+      const devMap = new Map(updatedDevices.map((d) => [d.id, d]));
+
+      // Recalculate all link states whenever a device configuration or interface status changes
+      const updatedLinks = prev.links.map((l) => {
+        const src = devMap.get(l.sourceDeviceId);
+        const tgt = devMap.get(l.targetDeviceId);
+        const srcIf = src?.config.interfaces.find(
+          (i) => i.id === l.sourceInterfaceId || i.name === l.sourceInterfaceName
+        );
+        const tgtIf = tgt?.config.interfaces.find(
+          (i) => i.id === l.targetInterfaceId || i.name === l.targetInterfaceName
+        );
+
+        const isSrcUp = src?.status === 'running' && srcIf?.status === 'up';
+        const isTgtUp = tgt?.status === 'running' && tgtIf?.status === 'up';
+        const linkIsUp = !!(isSrcUp && isTgtUp);
+
+        return {
+          ...l,
+          status: linkIsUp ? ('up' as const) : ('down' as const),
+          currentTrafficMbps: linkIsUp
+            ? l.currentTrafficMbps && l.currentTrafficMbps > 0
+              ? l.currentTrafficMbps
+              : 3.5
+            : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        devices: updatedDevices,
+        links: updatedLinks,
+      };
+    });
     setHasUnsavedChanges(true);
   };
 
@@ -606,6 +707,18 @@ export default function App() {
     const srcIface = srcDev.config.interfaces.find((i) => i.id === sourceInterfaceId);
     const tgtIface = tgtDev.config.interfaces.find((i) => i.id === targetInterfaceId);
 
+    // On routers, interfaces stay in their current status (default 'down') until configured with 'no shutdown'
+    const finalSrcStatus: 'up' | 'down' | 'admin_down' =
+      srcDev.type === 'router' ? (srcIface?.status || 'down') : 'up';
+    const finalTgtStatus: 'up' | 'down' | 'admin_down' =
+      tgtDev.type === 'router' ? (tgtIface?.status || 'down') : 'up';
+
+    const isLinkUp =
+      srcDev.status === 'running' &&
+      tgtDev.status === 'running' &&
+      finalSrcStatus === 'up' &&
+      finalTgtStatus === 'up';
+
     const newLink: NetworkLink = {
       id: `link-${Date.now()}`,
       name: `${srcDev.name}_${srcIface?.name || 'port'}<->${tgtDev.name}_${tgtIface?.name || 'port'}`,
@@ -616,9 +729,9 @@ export default function App() {
       targetInterfaceId,
       targetInterfaceName: tgtIface?.name || 'eth0',
       type: cableType,
-      status: srcDev.status === 'running' && tgtDev.status === 'running' ? 'up' : 'down',
+      status: isLinkUp ? 'up' : 'down',
       bandwidthMbps: cableType === 'fiber' ? 10000 : cableType === 'serial' ? 2 : 1000,
-      currentTrafficMbps: 0.1,
+      currentTrafficMbps: isLinkUp ? 0.1 : 0,
     };
 
     // Update interfaces with connectedTo references
@@ -641,7 +754,7 @@ export default function App() {
                         interfaceName: tgtIface?.name || 'eth0',
                         linkId: newLink.id,
                       },
-                      status: 'up' as const,
+                      status: finalSrcStatus,
                     }
                   : i
               ),
@@ -663,7 +776,7 @@ export default function App() {
                         interfaceName: srcIface?.name || 'eth0',
                         linkId: newLink.id,
                       },
-                      status: 'up' as const,
+                      status: finalTgtStatus,
                     }
                   : i
               ),

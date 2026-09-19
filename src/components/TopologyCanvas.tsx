@@ -322,30 +322,63 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
             const midY = (y1 + y2) / 2;
 
             const isLinkSelected = selectedLinkId === link.id;
-            const isRunning = link.status === 'up' && src.status === 'running' && tgt.status === 'running';
-            const isHeld = link.status === 'up' && (src.status === 'paused' || tgt.status === 'paused');
-            const isUp = isRunning || isHeld;
 
-            // Interface LED color based on device power status
-            const getEndpointLedColor = (devStatus: string) => {
-              if (devStatus === 'running') return '#22c55e'; // Green
-              if (devStatus === 'paused') return '#f59e0b'; // Amber / Orange
-              return '#ef4444'; // Red
+            // Find exact interface objects on both sides
+            const srcIf = src.config?.interfaces?.find(
+              (i) => i.id === link.sourceInterfaceId || i.name === link.sourceInterfaceName
+            );
+            const tgtIf = tgt.config?.interfaces?.find(
+              (i) => i.id === link.targetInterfaceId || i.name === link.targetInterfaceName
+            );
+
+            // Compute port status for LED indicator:
+            // - Powered off device -> Red (#ef4444)
+            // - Paused device -> Amber (#f59e0b)
+            // - Running device:
+            //     - If interface status is 'up' -> Green (#22c55e)
+            //     - If interface status is 'down' / 'admin_down' -> Red (#ef4444)
+            //     - On routers, unconfigured interfaces default to down (Red)
+            const getPortLed = (device: NetworkDevice, iface?: typeof srcIf) => {
+              if (device.status === 'stopped') {
+                return { color: '#ef4444', label: 'Device Powered Off' };
+              }
+              if (device.status === 'paused') {
+                return { color: '#f59e0b', label: 'Device on Hold / Paused' };
+              }
+              if (iface) {
+                if (iface.status === 'up') {
+                  return { color: '#22c55e', label: `${iface.name}: UP (Active / No Shutdown)` };
+                }
+                return { color: '#ef4444', label: `${iface.name}: DOWN (Administratively down / Shutdown)` };
+              }
+              if (device.type === 'router') {
+                return { color: '#ef4444', label: 'Router Port: DOWN (Default / Shutdown)' };
+              }
+              return { color: '#22c55e', label: 'Port UP' };
             };
 
-            // Cable style based on link type
-            let strokeColor = '#475569';
+            const srcLed = getPortLed(src, srcIf);
+            const tgtLed = getPortLed(tgt, tgtIf);
+
+            const isSourceUp = src.status === 'running' && srcIf?.status === 'up';
+            const isTargetUp = tgt.status === 'running' && tgtIf?.status === 'up';
+            const isRunning = link.status === 'up' && isSourceUp && isTargetUp;
+            const isHeld = (src.status === 'paused' || tgt.status === 'paused') && isSourceUp && isTargetUp;
+            const isUp = isRunning || isHeld;
+
+            // Cable style based on link type and active state
+            let strokeColor = '#334155';
             let strokeWidth = 2.5;
             let strokeDash: string | undefined = undefined;
 
             if (link.type === 'fiber') {
-              strokeColor = isHeld ? '#d97706' : '#f59e0b'; // Amber fiber
+              strokeColor = isUp ? (isHeld ? '#d97706' : '#f59e0b') : '#78350f'; // Amber fiber
               strokeWidth = 3;
             } else if (link.type === 'serial') {
-              strokeColor = '#ef4444'; // Red serial
+              strokeColor = isUp ? '#ef4444' : '#7f1d1d'; // Red serial
               strokeDash = '6 3';
             } else if (link.type === 'gigabit') {
-              strokeColor = isRunning ? '#0284c7' : isHeld ? '#d97706' : '#334155'; // Sky blue / Amber / Dark
+              strokeColor = isRunning ? '#0284c7' : isHeld ? '#d97706' : '#334155'; // Sky blue / Amber / Dark slate
               strokeWidth = 2.8;
             }
 
@@ -394,25 +427,31 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
                   className="transition-colors group-hover:stroke-sky-400"
                 />
 
-                {/* Interface status dots on ends (Green when Running, Amber when on Hold, Red when Stopped) */}
+                {/* Interface status dots on ends (Green when UP, Red when DOWN/Shutdown) */}
                 {/* Source interface LED */}
                 <circle
                   cx={x1 + (x2 - x1) * 0.18}
                   cy={y1 + (y2 - y1) * 0.18}
-                  r="4"
-                  fill={getEndpointLedColor(src.status)}
+                  r="4.5"
+                  fill={srcLed.color}
                   stroke="#0f172a"
-                  strokeWidth="1"
-                />
+                  strokeWidth="1.2"
+                  className="transition-colors duration-200"
+                >
+                  <title>{`${src.name} [${link.sourceInterfaceName}]: ${srcLed.label}`}</title>
+                </circle>
                 {/* Target interface LED */}
                 <circle
                   cx={x2 - (x2 - x1) * 0.18}
                   cy={y2 - (y2 - y1) * 0.18}
-                  r="4"
-                  fill={getEndpointLedColor(tgt.status)}
+                  r="4.5"
+                  fill={tgtLed.color}
                   stroke="#0f172a"
-                  strokeWidth="1"
-                />
+                  strokeWidth="1.2"
+                  className="transition-colors duration-200"
+                >
+                  <title>{`${tgt.name} [${link.targetInterfaceName}]: ${tgtLed.label}`}</title>
+                </circle>
 
                 {/* Interface labels along link */}
                 {showInterfaceLabels && (

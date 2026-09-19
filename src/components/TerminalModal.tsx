@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
   Terminal as TerminalIcon,
   X,
@@ -11,6 +11,22 @@ import {
 } from 'lucide-react';
 import { NetworkDevice, SimulatedPacket } from '../types/network';
 import { NetworkCLI, CliSessionState } from '../utils/cliParser';
+
+const MAX_LOG_LINES = 350;
+
+// Memoized logs list so typing into input doesn't re-render hundreds of log DOM nodes
+const TerminalLogsList = memo(({ logs }: { logs: string[] }) => {
+  return (
+    <div className="space-y-0.5 select-text">
+      {logs.map((line, idx) => (
+        <div key={idx} className="whitespace-pre-wrap break-all">
+          {line}
+        </div>
+      ))}
+    </div>
+  );
+});
+TerminalLogsList.displayName = 'TerminalLogsList';
 
 interface TerminalModalProps {
   isOpen: boolean;
@@ -41,7 +57,7 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
   const [isMaximized, setIsMaximized] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
 
-  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Active Device
@@ -110,12 +126,17 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
     });
   }, [openDeviceIds, allDevices]);
 
-  // Scroll to bottom on log updates
+  // Instant smooth auto-scroll to bottom on log updates without blocking UI
   useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      const el = scrollContainerRef.current;
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
   }, [terminalLogs, activeDeviceId]);
 
-  // Focus input when tab changes
+  // Focus input when tab changes or opens
   useEffect(() => {
     inputRef.current?.focus();
   }, [activeDeviceId, isOpen]);
@@ -147,17 +168,22 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
     currentSession.history = updatedHistory;
     currentSession.historyIndex = updatedHistory.length;
 
-    // Handle clear screen
+    // Handle clear screen or append logs with strict buffer capping
     if (result.output.length === 1 && result.output[0] === '__CLEAR__') {
       setTerminalLogs((prev) => ({
         ...prev,
         [activeDevice.id]: [],
       }));
     } else {
-      setTerminalLogs((prev) => ({
-        ...prev,
-        [activeDevice.id]: [...(prev[activeDevice.id] || []), cmdLine, ...result.output],
-      }));
+      setTerminalLogs((prev) => {
+        const existing = prev[activeDevice.id] || [];
+        const combined = [...existing, cmdLine, ...result.output];
+        const capped = combined.length > MAX_LOG_LINES ? combined.slice(-MAX_LOG_LINES) : combined;
+        return {
+          ...prev,
+          [activeDevice.id]: capped,
+        };
+      });
     }
 
     // Apply any device state updates (e.g., hostname change, IP configuration, no shutdown)
@@ -171,10 +197,12 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
     }
 
     setCurrentInput('');
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleSendCommand();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -204,27 +232,29 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
 
   const handleClearLogs = () => {
     setTerminalLogs((prev) => ({ ...prev, [activeDevice.id]: [] }));
+    inputRef.current?.focus();
   };
 
   // Quick command suggestions
   const quickCommands =
     activeDevice.config.osType === 'generic_linux'
       ? ['ip a', 'ip route', 'ifconfig', 'ping 192.168.1.1', 'curl 192.168.1.1', 'clear']
-      : ['en', 'conf t', 'sh ip int br', 'sh ip ro', 'sh run', 'ping 192.168.1.1', 'clear'];
+      : ['en', 'conf t', 'int e0', 'no shut', 'sh ip int br', 'sh ip ro', 'ping 10.0.0.2', 'clear'];
 
   return (
     <div
-      className={`fixed z-40 flex flex-col bg-slate-950 border border-slate-700 shadow-2xl overflow-hidden transition-all duration-200 ${
+      className={`fixed z-40 flex flex-col bg-slate-950 border border-slate-700/80 shadow-2xl overflow-hidden transition-all duration-150 ${
         isMaximized
-          ? 'inset-3 rounded-2xl'
-          : 'bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-[750px] md:h-[450px] rounded-2xl'
+          ? 'inset-3 rounded-2xl h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)]'
+          : 'bottom-4 left-4 right-4 md:left-auto md:right-4 w-[calc(100vw-2rem)] md:w-[760px] max-w-[760px] h-[420px] min-h-[420px] max-h-[420px] rounded-2xl'
       }`}
       id="ensv1-interactive-terminal"
+      style={{ boxSizing: 'border-box' }}
     >
-      {/* Tab bar header */}
-      <div className="flex items-center justify-between bg-slate-900 border-b border-slate-800 px-3 py-1.5 select-none">
+      {/* Tab bar header (Strict fixed height 40px - NEVER GROWS) */}
+      <div className="shrink-0 flex items-center justify-between bg-slate-900 border-b border-slate-800 px-3 py-1 select-none h-10 min-h-[40px] max-h-[40px]">
         {/* Device tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[80%]">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[70%] sm:max-w-[78%]">
           {openDeviceIds.map((devId) => {
             const dev = allDevices.find((d) => d.id === devId);
             if (!dev) return null;
@@ -234,20 +264,22 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
               <div
                 key={dev.id}
                 onClick={() => onSelectTab(dev.id)}
-                className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition shrink-0 max-w-[140px] ${
                   isActive
                     ? 'bg-slate-950 text-sky-400 border border-slate-700 shadow'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
               >
-                <TerminalIcon className="h-3 w-3" />
-                <span>{dev.name}</span>
+                <TerminalIcon className="h-3 w-3 shrink-0" />
+                <span className="truncate">{dev.name}</span>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onCloseTab(dev.id);
                   }}
-                  className="p-0.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200"
+                  className="p-0.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200 shrink-0"
+                  title="Close Tab"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -257,93 +289,93 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({
         </div>
 
         {/* Window controls */}
-        <div className="flex items-center gap-1 text-slate-400">
+        <div className="flex items-center gap-1 text-slate-400 shrink-0">
           <button
+            type="button"
             onClick={handleCopyLogs}
             title="Copy Terminal Logs"
-            className="p-1 rounded hover:bg-slate-800 hover:text-white relative"
+            className="p-1 rounded hover:bg-slate-800 hover:text-white relative transition"
           >
             {copiedToast ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
           <button
+            type="button"
             onClick={handleClearLogs}
             title="Clear Console"
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
+            className="p-1 rounded hover:bg-slate-800 hover:text-white transition"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           <button
+            type="button"
             onClick={() => setIsMaximized(!isMaximized)}
             title={isMaximized ? 'Restore' : 'Maximize'}
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
+            className="p-1 rounded hover:bg-slate-800 hover:text-white transition"
           >
             {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
           <button
+            type="button"
             onClick={onClose}
             title="Close Terminal Window"
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
+            className="p-1 rounded hover:bg-slate-800 hover:text-white transition"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Quick Action Chips Bar */}
-      <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-900/60 border-b border-slate-800/80 overflow-x-auto text-[11px] font-mono select-none">
-        <span className="text-slate-500 text-[10px] uppercase font-sans font-semibold">Quick:</span>
+      {/* Quick Action Chips Bar (Strict fixed height 32px) */}
+      <div className="shrink-0 flex items-center gap-1.5 px-3 bg-slate-900/70 border-b border-slate-800/80 overflow-x-auto text-[11px] font-mono select-none h-8 min-h-[32px] max-h-[32px] no-scrollbar">
+        <span className="text-slate-500 text-[10px] uppercase font-sans font-semibold shrink-0">Quick:</span>
         {quickCommands.map((qCmd) => (
           <button
             key={qCmd}
+            type="button"
             onClick={() => handleSendCommand(qCmd)}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-sky-600/30 hover:text-sky-300 text-slate-300 transition whitespace-nowrap"
+            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-sky-600/30 hover:text-sky-300 text-slate-300 transition whitespace-nowrap shrink-0 text-[11px]"
           >
             {qCmd}
           </button>
         ))}
       </div>
 
-      {/* Terminal Screen (Monospace Canvas) */}
+      {/* Terminal Screen (Strict flex-1 min-h-0 h-0 overflow-y-auto overscroll-contain - NEVER GROWS WINDOW HEIGHT) */}
       <div
+        ref={scrollContainerRef}
         onClick={() => inputRef.current?.focus()}
-        className="flex-1 overflow-y-auto p-4 font-mono text-xs text-emerald-400 bg-[#050911] leading-relaxed cursor-text"
+        className="flex-1 min-h-0 h-0 overflow-y-auto overscroll-contain p-3.5 font-mono text-xs text-emerald-400 bg-[#050911] leading-relaxed cursor-text select-text"
       >
-        {currentLogs.map((line, idx) => (
-          <div key={idx} className="whitespace-pre-wrap">
-            {line}
-          </div>
-        ))}
+        <TerminalLogsList logs={currentLogs} />
 
-        {/* Active Prompt & Input Line */}
-        <div className="flex items-center mt-1">
-          <span className="text-sky-400 font-bold select-none shrink-0">{currentPrompt}</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent border-none outline-none text-emerald-300 font-mono text-xs pl-1 caret-white"
-            autoFocus
-          />
+        {/* Current active prompt indicator at bottom of buffer */}
+        <div className="flex items-center gap-1.5 mt-1 select-none text-xs font-mono">
+          <span className="text-sky-400 font-bold">{currentPrompt}</span>
+          <span className="w-2 h-3.5 bg-emerald-400 inline-block animate-pulse align-middle" />
         </div>
-        <div ref={terminalEndRef} />
       </div>
 
-      {/* Terminal Input Bar at Bottom (for touch / mobile ease) */}
-      <div className="flex items-center gap-2 p-2 bg-slate-900 border-t border-slate-800">
-        <span className="text-xs text-slate-500 font-mono pl-2 hidden sm:inline">{currentPrompt}</span>
+      {/* Terminal Input Bar at Bottom (Strict fixed height 48px - NEVER GROWS) */}
+      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-t border-slate-800 h-12 min-h-[48px] max-h-[48px]">
+        <span className="text-xs text-sky-400 font-bold font-mono pl-1 hidden sm:inline shrink-0 select-none">
+          {currentPrompt}
+        </span>
         <input
+          ref={inputRef}
           type="text"
           value={currentInput}
           onChange={(e) => setCurrentInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Type command or "help" for ${activeDevice.name}...`}
-          className="flex-1 rounded-lg bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+          placeholder={`Enter command (e.g. no shut, sh ip int br, ping)...`}
+          className="flex-1 rounded-lg bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-sky-500 placeholder:text-slate-600"
+          autoFocus
+          spellCheck={false}
+          autoComplete="off"
         />
         <button
+          type="button"
           onClick={() => handleSendCommand()}
-          className="flex items-center gap-1 rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+          className="shrink-0 flex items-center gap-1 rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition active:scale-95 shadow-sm"
         >
           <Send className="h-3 w-3" />
           <span className="hidden sm:inline">Send</span>

@@ -381,9 +381,17 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
               </button>
             </div>
 
+            {selectedDevice.type === 'router' && (
+              <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-300/90 leading-relaxed">
+                <span className="font-bold text-amber-200">ℹ️ Router Port Behavior:</span> By default, router interfaces are administratively <span className="text-red-400 font-semibold">DOWN (Red)</span>. Enable them using <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-200 font-mono">no shutdown</code> in CLI or click the status toggle below.
+              </div>
+            )}
+
             <div className="space-y-2">
               {(selectedDevice.config?.interfaces || []).map((iface) => {
                 const isConnected = !!iface.connectedTo;
+                const isPortActive = iface.status === 'up' && selectedDevice.status === 'running';
+
                 return (
                   <div
                     key={iface.id}
@@ -392,27 +400,39 @@ export const DevicePropertiesPanel: React.FC<DevicePropertiesPanelProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`h-2.5 w-2.5 rounded-full ${
-                            iface.status === 'up' && selectedDevice.status === 'running'
-                              ? 'bg-emerald-400'
-                              : 'bg-red-500'
+                          className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                            isPortActive
+                              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                              : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
                           }`}
                         />
                         <span className="font-bold text-white font-mono">{iface.name}</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                          iface.status === 'up' ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                          {iface.status === 'up' ? 'UP' : 'ADMIN DOWN'}
+                        </span>
                       </div>
                       <button
+                        type="button"
                         onClick={() =>
                           handleInterfaceChange(iface.id, {
                             status: iface.status === 'up' ? 'down' : 'up',
                           })
                         }
-                        className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                        title={
                           iface.status === 'up'
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                            : 'bg-slate-900 text-slate-400 border border-slate-700'
+                            ? 'Interface is UP. Click to shutdown (bring DOWN)'
+                            : 'Interface is DOWN. Click to enable (no shutdown)'
+                        }
+                        className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase transition flex items-center gap-1.5 ${
+                          iface.status === 'up'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-700 hover:bg-emerald-900/60'
+                            : 'bg-red-950/70 text-red-300 border border-red-800 hover:bg-red-900/50'
                         }`}
                       >
-                        {iface.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${iface.status === 'up' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                        {iface.status === 'up' ? 'UP (no shut)' : 'DOWN (shut)'}
                       </button>
                     </div>
 

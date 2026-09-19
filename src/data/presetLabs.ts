@@ -168,7 +168,7 @@ export const PRESET_LABS: ENSProject[] = [
             {
               id: 'if-q1-e0',
               name: 'e0',
-              status: 'up',
+              status: 'down',
               ipAddress: '192.168.1.1',
               subnetMask: '255.255.255.0',
               macAddress: 'c2:01:14:1b:00:00',
@@ -179,7 +179,7 @@ export const PRESET_LABS: ENSProject[] = [
             {
               id: 'if-q1-e7',
               name: 'e7',
-              status: 'up',
+              status: 'down',
               ipAddress: '10.0.0.1',
               subnetMask: '255.255.255.252',
               macAddress: 'c2:01:14:1b:00:07',
@@ -222,7 +222,7 @@ export const PRESET_LABS: ENSProject[] = [
             {
               id: 'if-q2-e7',
               name: 'e7',
-              status: 'up',
+              status: 'down',
               ipAddress: '10.0.0.2',
               subnetMask: '255.255.255.252',
               macAddress: 'c2:02:14:1b:00:07',
@@ -233,7 +233,7 @@ export const PRESET_LABS: ENSProject[] = [
             {
               id: 'if-q2-e0',
               name: 'e0',
-              status: 'up',
+              status: 'down',
               ipAddress: '192.168.2.1',
               subnetMask: '255.255.255.0',
               macAddress: 'c2:02:14:1b:00:00',
@@ -295,9 +295,9 @@ export const PRESET_LABS: ENSProject[] = [
         targetInterfaceId: 'if-q1-e0',
         targetInterfaceName: 'e0',
         type: 'gigabit',
-        status: 'up',
+        status: 'down',
         bandwidthMbps: 1000,
-        currentTrafficMbps: 12.5,
+        currentTrafficMbps: 0,
       },
       {
         id: 'link-q1-q2',
@@ -309,9 +309,9 @@ export const PRESET_LABS: ENSProject[] = [
         targetInterfaceId: 'if-q2-e7',
         targetInterfaceName: 'e7',
         type: 'gigabit',
-        status: 'up',
+        status: 'down',
         bandwidthMbps: 1000,
-        currentTrafficMbps: 8.7,
+        currentTrafficMbps: 0,
       },
       {
         id: 'link-q2-h3',
@@ -323,9 +323,9 @@ export const PRESET_LABS: ENSProject[] = [
         targetInterfaceId: 'if-h3-eth0',
         targetInterfaceName: 'eth0',
         type: 'gigabit',
-        status: 'up',
+        status: 'down',
         bandwidthMbps: 1000,
-        currentTrafficMbps: 3.1,
+        currentTrafficMbps: 0,
       },
     ],
     annotations: [

@@ -267,6 +267,19 @@ export class NetworkCLI {
       return { output: ['__CLEAR__'], newPrompt: this.getPrompt(device, session) };
     }
 
+    // Support 'do <command>' from config, config-if, config-router
+    if (cmd.startsWith('do ') && session.mode !== 'user' && session.mode !== 'privileged') {
+      const doCmd = cmd.substring(3).trim();
+      const savedMode = session.mode;
+      const savedContext = session.subContext;
+      session.mode = 'privileged';
+      const res = this.executeCisco(doCmd, device, session, allDevices);
+      session.mode = savedMode;
+      session.subContext = savedContext;
+      res.newPrompt = this.getPrompt(device, session);
+      return res;
+    }
+
     // USER EXEC MODE
     if (session.mode === 'user') {
       if (primary === 'enable' || primary === 'en') {
@@ -389,8 +402,22 @@ export class NetworkCLI {
         };
       }
       if (primary === 'interface' || primary === 'int') {
-        const ifName = parts[1];
-        const iface = device.config.interfaces.find((i) => i.name.toLowerCase() === ifName?.toLowerCase());
+        const rawTarget = parts.slice(1).join('').toLowerCase().replace(/[\s\-_]/g, '');
+        const iface = device.config.interfaces.find((i) => {
+          const norm = i.name.toLowerCase().replace(/[\s\-_]/g, '');
+          if (norm === rawTarget) return true;
+          // Support short forms like g0/0, gi0/0, e0, etc.
+          const stripLetters = (s: string) => s.replace(/^[a-z]+/, '');
+          const ifLetters = norm.match(/^[a-z]+/)?.[0] || '';
+          const targetLetters = rawTarget.match(/^[a-z]+/)?.[0] || '';
+          if (stripLetters(norm) === stripLetters(rawTarget)) {
+            if (ifLetters.startsWith(targetLetters) || targetLetters.startsWith(ifLetters)) {
+              return true;
+            }
+          }
+          return false;
+        });
+
         if (!iface) {
           return {
             output: [`% Invalid interface type or number. Available: ${device.config.interfaces.map((i) => i.name).join(', ')}`],
@@ -458,7 +485,8 @@ export class NetworkCLI {
         };
       }
 
-      if (cmd === 'no shutdown' || cmd === 'no shut') {
+      const normIfCmd = cmd.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (normIfCmd === 'no shutdown' || normIfCmd === 'no shut' || normIfCmd === 'no sh') {
         iface.status = 'up';
         return {
           output: [
@@ -470,7 +498,7 @@ export class NetworkCLI {
         };
       }
 
-      if (cmd === 'shutdown' || cmd === 'shut') {
+      if (normIfCmd === 'shutdown' || normIfCmd === 'shut' || normIfCmd === 'sh') {
         iface.status = 'down';
         return {
           output: [
@@ -788,6 +816,18 @@ export class NetworkCLI {
 
     if (!targetDevice) return { reachable: false };
     if (targetDevice.status !== 'running' || sourceDevice.status !== 'running') {
+      return { targetDevice, reachable: false };
+    }
+
+    // Target interface must be UP (not shutdown)
+    const targetIface = targetDevice.config.interfaces.find((i) => i.ipAddress === targetIp);
+    if (!targetIface || targetIface.status !== 'up') {
+      return { targetDevice, reachable: false };
+    }
+
+    // Source device must have at least one UP interface
+    const hasSourceActiveIf = sourceDevice.config.interfaces.some((i) => i.status === 'up');
+    if (!hasSourceActiveIf) {
       return { targetDevice, reachable: false };
     }
 
